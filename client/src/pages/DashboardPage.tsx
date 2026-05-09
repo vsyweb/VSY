@@ -19,7 +19,7 @@ const DashboardPage: React.FC = () => {
   const [selectedSlots, setSelectedSlots] = useState<SlotInfo[]>([]);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
-  const dates = getDateRange(14); // Show 2 weeks
+  const dates = getDateRange(30); // Show 30 days
 
   const fetchSlots = useCallback(async (date: string) => {
     setLoadingA(true);

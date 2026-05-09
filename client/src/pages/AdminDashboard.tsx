@@ -116,7 +116,7 @@ const AdminDashboard: React.FC = () => {
 
   // Memoize dates so the array reference is stable across renders.
   // Without this, DatePicker re-mounts every render → double-click needed to select a date.
-  const dates = useMemo(() => getDateRange(14), []);
+  const dates = useMemo(() => getDateRange(30), []);
 
   const fetchStats = useCallback(async () => {
     setLoadingStats(true);

@@ -595,10 +595,10 @@ const LoginPage: React.FC = () => {
                       <p className="font-bold text-white text-sm sm:text-base mb-1">Direct Bookings</p>
                       <div className="space-y-0.5">
                         <p className="text-xs sm:text-sm text-surface-400">
-                          <a href="tel:+916305277053" className="hover:text-primary-400 transition-colors">+91 63052 77053</a>
+                          <a href="tel:+919502154297" className="hover:text-primary-400 transition-colors">+91 95021 54297</a>
                         </p>
                         <p className="text-xs sm:text-sm text-surface-400">
-                          <a href="tel:+917013521323" className="hover:text-primary-400 transition-colors">+91 70135 21323</a>
+                          <a href="tel:+916305277053" className="hover:text-primary-400 transition-colors">+91 6305-277053</a>
                         </p>
                       </div>
                     </div>
@@ -613,7 +613,7 @@ const LoginPage: React.FC = () => {
                 <a href="https://www.youtube.com/@vsysportsarena" target="_blank" rel="noopener noreferrer" className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 flex items-center justify-center hover:bg-red-500/20 hover:text-red-500 transition-all">
                   <FaYoutube size={22} />
                 </a>
-                <a href="https://wa.me/916305277053" target="_blank" rel="noopener noreferrer" className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 flex items-center justify-center hover:bg-green-500/20 hover:text-green-500 transition-all">
+                <a href="https://wa.me/919502154297" target="_blank" rel="noopener noreferrer" className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/5 flex items-center justify-center hover:bg-green-500/20 hover:text-green-500 transition-all">
                   <FaWhatsapp size={22} />
                 </a>
               </div>

@@ -161,7 +161,7 @@ export const adminCollectPayment = async (bookingId: string) => {
 export const blockSlotAdmin = async (
   turfId: TurfId, 
   date: string, 
-  startHour: number, 
+  startHours: number[], 
   reason?: string,
   phoneNumber?: string,
   customerName?: string
@@ -169,7 +169,7 @@ export const blockSlotAdmin = async (
   const res = await api.post<ApiResponse>('/admin/slots/block', { 
     turfId, 
     date, 
-    startHour, 
+    startHours, 
     reason,
     phoneNumber,
     customerName

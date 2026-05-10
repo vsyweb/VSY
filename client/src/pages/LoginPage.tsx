@@ -178,7 +178,7 @@ const LoginPage: React.FC = () => {
       <section className="relative min-h-screen flex items-center justify-center pt-8 sm:pt-12 px-4 sm:px-6 overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 z-0">
-          <img src="/images/hero_turf.png" alt="VSY Turf" className="w-full h-full object-cover scale-105" />
+          <img src="/images/hero_turf.png" alt="VSY Arena" className="w-full h-full object-cover scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-surface-950 via-surface-950/70 to-surface-950/40" />
         </div>
 
@@ -314,7 +314,7 @@ const LoginPage: React.FC = () => {
       <div className="relative py-8 sm:py-12 border-y border-white/5 bg-surface-900/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
           {[
-            { label: 'Turfs', value: '02', icon: MdSportsCricket },
+            { label: 'Arenas', value: '02', icon: MdSportsCricket },
             { label: 'Rating', value: '4.8', icon: MdStar },
             { label: 'Hours Played', value: '10K+', icon: MdAccessTime },
             { label: 'Athletes', value: '5K+', icon: MdGroups },
@@ -384,7 +384,7 @@ const LoginPage: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-4 relative z-10">
                         <div className="space-y-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary-500">Turf A</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary-500">Arena 1</p>
                           <div className="space-y-1">
                             <p className="text-[10px] text-surface-400 font-bold uppercase tracking-tighter">Day</p>
                             <p className="text-xl font-display font-black text-white">₹{pricingLoading ? '...' : getPriceOrDefault('A', 'weekday', false)}<span className="text-[9px] font-medium text-surface-500">/hr</span></p>
@@ -396,7 +396,7 @@ const LoginPage: React.FC = () => {
                         </div>
 
                         <div className="space-y-4 border-l border-white/5 pl-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-accent-500">Turf B</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-accent-500">Arena 2</p>
                           <div className="space-y-1">
                             <p className="text-[10px] text-surface-400 font-bold uppercase tracking-tighter">Day</p>
                             <p className="text-xl font-display font-black text-white">₹{pricingLoading ? '...' : getPriceOrDefault('B', 'weekday', false)}<span className="text-[9px] font-medium text-surface-500">/hr</span></p>
@@ -426,7 +426,7 @@ const LoginPage: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-4 relative z-10">
                         <div className="space-y-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-primary-500">Turf A</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary-500">Arena 1</p>
                           <div className="space-y-1">
                             <p className="text-[10px] text-surface-400 font-bold uppercase tracking-tighter">Day</p>
                             <p className="text-xl font-display font-black text-white">₹{pricingLoading ? '...' : getPriceOrDefault('A', 'weekend', false)}<span className="text-[9px] font-medium text-surface-500">/hr</span></p>
@@ -438,7 +438,7 @@ const LoginPage: React.FC = () => {
                         </div>
 
                         <div className="space-y-4 border-l border-white/5 pl-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-accent-500">Turf B</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-accent-500">Arena 2</p>
                           <div className="space-y-1">
                             <p className="text-[10px] text-surface-400 font-bold uppercase tracking-tighter">Day</p>
                             <p className="text-xl font-display font-black text-white">₹{pricingLoading ? '...' : getPriceOrDefault('B', 'weekend', false)}<span className="text-[9px] font-medium text-surface-500">/hr</span></p>
@@ -476,7 +476,7 @@ const LoginPage: React.FC = () => {
             {/* Features list */}
             <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4 sm:gap-6">
               {[
-                { title: 'High-Density Turf', desc: 'Premium artificial grass designed for box cricket offering true bounce.', icon: MdStar, color: 'text-amber-500' },
+                { title: 'High-Density Arena', desc: 'Premium artificial grass designed for box cricket offering true bounce.', icon: MdStar, color: 'text-amber-500' },
                 { title: '24/7 Availability', desc: 'Book your favorite slot anytime, day or night.', icon: MdAccessTime, color: 'text-primary-500' },
                 { title: 'Secure Environment', desc: 'Fully fenced box architecture ensures safety.', icon: MdSecurity, color: 'text-green-500' },
                 { title: 'Instant Payments', desc: 'Hassle-free online booking with Razorpay.', icon: MdPayment, color: 'text-accent-500' },

@@ -227,7 +227,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
                 <div>
                   <p className="text-[9px] sm:text-[10px] text-surface-400 font-bold uppercase tracking-widest">Selected Facility</p>
-                  <p className="text-white font-black text-base sm:text-lg leading-tight">Turf {turfId}</p>
+                  <p className="text-white font-black text-base sm:text-lg leading-tight">Arena {turfId === 'A' ? '1' : '2'}</p>
                 </div>
               </div>
               <div className="text-right">
@@ -424,7 +424,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
           <h3 className="text-3xl font-display font-black text-green-400 mb-2 uppercase tracking-tighter">Booking Confirmed!</h3>
           <p className="text-white font-bold text-lg mb-1">Get ready for your match!</p>
           <p className="text-surface-500 text-sm max-w-[240px]">
-            Your reservation for <span className="text-white font-bold">Turf {turfId}</span> on <span className="text-white font-bold">{formatDate(date)}</span> is successful.
+            Your reservation for <span className="text-white font-bold">Arena {turfId === 'A' ? '1' : '2'}</span> on <span className="text-white font-bold">{formatDate(date)}</span> is successful.
           </p>
           
           <div className="mt-8 w-full p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center gap-2">

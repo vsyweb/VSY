@@ -14,7 +14,7 @@ const calculatePrice = (slot: { turfId: string; date: string; startHour: number 
   const isWeekend = (() => {
     const date = new Date(slot.date + 'T00:00:00');
     const day = date.getDay();
-    return day === 0 || day === 6;
+    return day === 0 || day === 5 || day === 6;
   })();
   const dayType = isWeekend ? 'weekend' : 'weekday';
 
@@ -215,8 +215,18 @@ export const adminCollectPayment = async (req: Request, res: Response): Promise<
  */
 export const blockSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { turfId, date, startHour, reason, phoneNumber, customerName } = req.body;
+    const { turfId, date, reason, phoneNumber, customerName } = req.body;
+    let { startHour, startHours } = req.body;
     const adminId = req.userId;
+
+    if (startHour !== undefined && !startHours) {
+      startHours = [startHour];
+    }
+
+    if (!startHours || !Array.isArray(startHours) || startHours.length === 0) {
+      res.status(400).json({ success: false, message: 'Invalid start hours' });
+      return;
+    }
 
     // If phone number is provided, it's a Walk-in Booking
     if (phoneNumber) {
@@ -232,39 +242,41 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
         await user.save();
       }
 
-      // Calculate price for the booking
       const pricingRules = await PricingRule.find({ isActive: true }).lean();
-      const price = calculatePrice({ turfId, date, startHour }, pricingRules);
+      
+      const bookings = await Promise.all(startHours.map(async (hour: number) => {
+        const price = calculatePrice({ turfId, date, startHour: hour }, pricingRules);
+        return await Booking.create({
+          userId: user._id,
+          turfId,
+          date,
+          startHour: hour,
+          totalAmount: price,
+          paidAmount: price,
+          paymentType: 'full',
+          status: 'confirmed',
+          razorpayOrderId: `WALKIN-${Date.now()}-${hour}`,
+          razorpayPaymentId: 'CASH_PAYMENT',
+          razorpaySignature: 'ADMIN_COLLECTED'
+        });
+      }));
 
-      // Create a REAL confirmed booking
-      const booking = await Booking.create({
-        userId: user._id,
-        turfId,
-        date,
-        startHour,
-        totalAmount: price,
-        paidAmount: price,
-        paymentType: 'full',
-        status: 'confirmed',
-        razorpayOrderId: `WALKIN-${Date.now()}`,
-        razorpayPaymentId: 'CASH_PAYMENT',
-        razorpaySignature: 'ADMIN_COLLECTED'
-      });
-
-      res.status(201).json({ success: true, message: 'Walk-in booking created successfully', data: booking });
+      res.status(201).json({ success: true, message: 'Walk-in booking created successfully', data: bookings });
       return;
     }
 
     // If no phone number, it's a maintenance block
-    const blocked = await BlockedSlot.create({
-      turfId,
-      date,
-      startHour,
-      reason: reason || 'Admin Block',
-      blockedBy: new mongoose.Types.ObjectId(adminId),
-    });
+    const blocked = await Promise.all(startHours.map(async (hour: number) => {
+      return await BlockedSlot.create({
+        turfId,
+        date,
+        startHour: hour,
+        reason: reason || 'Admin Block',
+        blockedBy: new mongoose.Types.ObjectId(adminId),
+      });
+    }));
 
-    res.status(201).json({ success: true, message: 'Slot blocked successfully', data: blocked });
+    res.status(201).json({ success: true, message: 'Slots blocked successfully', data: blocked });
   } catch (error) {
     console.error('Block slot error:', error);
     res.status(500).json({ success: false, message: 'Failed to process request' });

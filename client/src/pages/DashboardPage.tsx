@@ -103,6 +103,10 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
           <DatePicker dates={dates} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+          <p className="mt-3 text-[10px] sm:text-xs flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500/90 font-medium">
+            <MdInfo size={16} className="mt-0.5 flex-shrink-0" />
+            <span>On government holidays and festive seasons, weekend prices will be applied (if applicable on the selected date, excess amount will be collected at the arena).</span>
+          </p>
         </div>
 
         {/* Turf Tabs */}
@@ -122,7 +126,7 @@ const DashboardPage: React.FC = () => {
                   : 'bg-white/5 text-surface-400 border border-white/5 hover:bg-white/10'
               }`}
             >
-              Turf {turf}
+              Arena {turf === 'A' ? '1' : '2'}
             </button>
           ))}
         </div>

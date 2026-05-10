@@ -99,7 +99,7 @@ const AdminDashboard: React.FC = () => {
 
   // Walk-in booking state
   const [showBlockModal, setShowBlockModal] = useState(false);
-  const [blockHour, setBlockHour] = useState<number | null>(null);
+  const [selectedAdminSlots, setSelectedAdminSlots] = useState<number[]>([]);
   const [walkinName, setWalkinName] = useState('');
   const [walkinPhone, setWalkinPhone] = useState('');
   const [blockingInProgress, setBlockingInProgress] = useState(false);
@@ -213,6 +213,7 @@ const AdminDashboard: React.FC = () => {
   }, [filterDate, filterTurf, filterStatus, filterSearch, filterPage, filterCompleted]);
 
   const fetchSlots = useCallback(async () => {
+    setSelectedAdminSlots([]);
     setLoadingSlots(true);
     try {
       const [slotsRes, blockedRes] = await Promise.all([
@@ -294,22 +295,17 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleBlockSlot = (hour: number) => {
-    setBlockHour(hour);
-    setWalkinName('');
-    setWalkinPhone('');
-    setShowBlockModal(true);
-  };
+
 
   const handleConfirmBlock = async () => {
-    if (blockHour === null) return;
+    if (selectedAdminSlots.length === 0) return;
 
     setBlockingInProgress(true);
     try {
       const res = await blockSlotAdmin(
         selectedTurf,
         selectedDate,
-        blockHour,
+        selectedAdminSlots,
         walkinName ? `Walk-in: ${walkinName}` : 'Admin Block',
         walkinPhone,
         walkinName
@@ -325,6 +321,7 @@ const AdminDashboard: React.FC = () => {
         fetchSlots();
         fetchStats();
         fetchBookings();
+        setSelectedAdminSlots([]);
       } else {
         toast.error(res.message || 'Failed to process');
       }
@@ -406,13 +403,13 @@ const AdminDashboard: React.FC = () => {
                             const nameOrPhone = u ? `${u.name || ''} ${u.phone || ''}`.trim() || 'Walk-in' : 'Reserved';
                             return (
                               <span key={turf} className="text-green-400">
-                                🟢 CURRENTLY RUNNING: Turf {match.turfId} | Customer: {nameOrPhone} | {formatDate(match.date)} | {formatHour(match.startHour)} to {formatHour(match.startHour + 1)}
+                                🟢 CURRENTLY RUNNING: Arena {match.turfId === 'A' ? '1' : '2'} | Customer: {nameOrPhone} | {formatDate(match.date)} | {formatHour(match.startHour)} to {formatHour(match.startHour + 1)}
                               </span>
                             );
                           }
                           return (
                             <span key={turf} className="text-surface-500">
-                              🏏 Turf {turf}: Currently Available
+                              🏏 Arena {turf === 'A' ? '1' : '2'}: Currently Available
                             </span>
                           );
                         })}
@@ -449,13 +446,13 @@ const AdminDashboard: React.FC = () => {
                             const nameOrPhone = u ? `${u.name || ''} ${u.phone || ''}`.trim() || 'Walk-in' : 'Reserved';
                             return (
                               <span key={turf} className="text-cyan-400">
-                                ⏩ NEXT HOUR: Turf {match.turfId} | Customer: {nameOrPhone} | {formatHour(match.startHour)} to {formatHour(match.startHour + 1)}
+                                ⏩ NEXT HOUR: Arena {match.turfId === 'A' ? '1' : '2'} | Customer: {nameOrPhone} | {formatHour(match.startHour)} to {formatHour(match.startHour + 1)}
                               </span>
                             );
                           }
                           return (
                             <span key={turf} className="text-surface-600">
-                              ⏩ Turf {turf}: Next slot is empty / available!
+                              ⏩ Arena {turf === 'A' ? '1' : '2'}: Next slot is empty / available!
                             </span>
                           );
                         })}
@@ -644,8 +641,8 @@ const AdminDashboard: React.FC = () => {
                   {[
                     { label: 'Total Users', value: stats.totalUsers ?? 0, icon: <MdPeople size={24} />, color: 'purple', sub: 'Registered' },
                     { label: 'Total Bookings', value: stats.totalBookings ?? 0, icon: <MdCheckCircle size={24} />, color: 'primary', sub: 'Across all time' },
-                    { label: 'Turf A Income', value: (stats.revenueByTurf ?? []).find(t => t._id === 'A')?.total ?? 0, icon: <MdSportsCricket size={24} />, color: 'primary', sub: `${(stats.revenueByTurf ?? []).find(t => t._id === 'A')?.count ?? 0} Games` },
-                    { label: 'Turf B Income', value: (stats.revenueByTurf ?? []).find(t => t._id === 'B')?.total ?? 0, icon: <MdSportsCricket size={24} />, color: 'accent', sub: `${(stats.revenueByTurf ?? []).find(t => t._id === 'B')?.count ?? 0} Games` },
+                    { label: 'Arena 1 Income', value: (stats.revenueByTurf ?? []).find(t => t._id === 'A')?.total ?? 0, icon: <MdSportsCricket size={24} />, color: 'primary', sub: `${(stats.revenueByTurf ?? []).find(t => t._id === 'A')?.count ?? 0} Games` },
+                    { label: 'Arena 2 Income', value: (stats.revenueByTurf ?? []).find(t => t._id === 'B')?.total ?? 0, icon: <MdSportsCricket size={24} />, color: 'accent', sub: `${(stats.revenueByTurf ?? []).find(t => t._id === 'B')?.count ?? 0} Games` },
                     { label: 'Ball Revenue', value: stats.totalBallRevenue ?? 0, icon: <MdAttachMoney size={24} />, color: 'amber', sub: 'Equipment' },
                   ].map((stat, idx) => (
                     <div key={idx} className={`group relative overflow-hidden rounded-3xl p-6 border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300`}>
@@ -709,7 +706,7 @@ const AdminDashboard: React.FC = () => {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs sm:text-sm font-bold text-white truncate">{user?.name || user?.phone || 'Guest'}</p>
                               <p className="text-[10px] sm:text-xs text-surface-500 truncate">
-                                Turf {booking.turfId} · {formatDate(booking.date)} · {(booking.startHours?.length ?? 0) > 1 ? `${booking.startHours?.length} Slots: ` : ''}{formatHour(booking.startHours?.[0] ?? booking.startHour)} - {formatHour(booking.endHour ?? booking.startHour + 1)}
+                                Arena {booking.turfId === 'A' ? '1' : '2'} · {formatDate(booking.date)} · {(booking.startHours?.length ?? 0) > 1 ? `${booking.startHours?.length} Slots: ` : ''}{formatHour(booking.startHours?.[0] ?? booking.startHour)} - {formatHour(booking.endHour ?? booking.startHour + 1)}
                                 {booking.ballType && booking.ballType !== 'none' && ` · 🏏 ${booking.ballType.replace('_', ' ')}`}
                               </p>
                             </div>
@@ -797,15 +794,15 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-surface-500 mb-1">Turf</label>
+                      <label className="block text-[10px] font-bold uppercase text-surface-500 mb-1">Arena</label>
                       <select
                         value={filterTurf}
                         onChange={(e) => { setFilterTurf(e.target.value); setFilterPage(1); }}
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500/50"
                       >
-                        <option value="">All Turfs</option>
-                        <option value="A">Turf A</option>
-                        <option value="B">Turf B</option>
+                        <option value="">All Arenas</option>
+                        <option value="A">Arena 1</option>
+                        <option value="B">Arena 2</option>
                       </select>
                     </div>
 
@@ -892,7 +889,7 @@ const AdminDashboard: React.FC = () => {
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className={`px-1.5 py-0.5 rounded font-black text-[10px] ${b.turfId === 'A' ? 'bg-primary-500/20 text-primary-400' : 'bg-accent-500/20 text-accent-400'}`}>
-                              Turf {b.turfId}
+                              Arena {b.turfId === 'A' ? '1' : '2'}
                             </span>
                             <span className="text-surface-400">{formatDate(b.date)}</span>
                             <span className="text-primary-400 font-bold">{(b.startHours?.length ?? 0) > 1 ? `${b.startHours?.length} Slots: ` : ''} {formatHour(b.startHours?.[0] ?? b.startHour)} - {formatHour(b.endHour ?? b.startHour + 1)}</span>
@@ -943,7 +940,7 @@ const AdminDashboard: React.FC = () => {
                     <thead>
                       <tr className="border-b border-white/5 bg-white/5">
                         <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Customer</th>
-                        <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Turf</th>
+                        <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Arena</th>
                         <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Schedule</th>
                         <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Payment</th>
                         <th className="text-left py-3 px-4 text-surface-400 font-bold uppercase tracking-widest text-[10px]">Status</th>
@@ -977,7 +974,7 @@ const AdminDashboard: React.FC = () => {
                               )}
                             </td>
                             <td className="py-3 px-4">
-                              <span className={`px-2 py-0.5 rounded font-black text-xs ${b.turfId === 'A' ? 'bg-primary-500/20 text-primary-400' : 'bg-accent-500/20 text-accent-400'}`}>Turf {b.turfId}</span>
+                              <span className={`px-2 py-0.5 rounded font-black text-xs ${b.turfId === 'A' ? 'bg-primary-500/20 text-primary-400' : 'bg-accent-500/20 text-accent-400'}`}>Arena {b.turfId === 'A' ? '1' : '2'}</span>
                             </td>
                             <td className="py-3 px-4">
                               <p className="text-sm font-bold text-white">{formatDate(b.date)}</p>
@@ -1065,9 +1062,9 @@ const AdminDashboard: React.FC = () => {
 
             <div className="flex gap-2">
               {(['A', 'B'] as TurfId[]).map((t) => (
-                <button key={t} onClick={() => setSelectedTurf(t)}
+                <button key={t} onClick={() => { setSelectedTurf(t); setSelectedAdminSlots([]); }}
                   className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${selectedTurf === t ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30' : 'bg-white/5 text-surface-400 border border-white/5'
-                    }`}>Turf {t}</button>
+                    }`}>Arena {t === 'A' ? '1' : '2'}</button>
               ))}
             </div>
 
@@ -1082,17 +1079,27 @@ const AdminDashboard: React.FC = () => {
 
                   return displaySlots.map((slot) => (
                     <div key={slot.hour}
-                      className={`flex flex-col items-center p-2 sm:p-3 rounded-xl border transition-all min-h-[80px] sm:min-h-[100px] ${slot.status === 'blocked' ? 'bg-surface-700/50 border-surface-600/30'
-                        : slot.status === 'booked' ? 'bg-primary-500/10 border-primary-500/20 opacity-60'
-                          : 'bg-white/5 border-white/5 hover:border-primary-500/30'
-                        }`}>
+                      onClick={() => {
+                        if (slot.status === 'available') {
+                           setSelectedAdminSlots(prev => prev.includes(slot.hour) ? prev.filter(h => h !== slot.hour) : [...prev, slot.hour].sort((a, b) => a - b));
+                        }
+                      }}
+                      className={`flex flex-col items-center p-2 sm:p-3 rounded-xl border transition-all cursor-pointer min-h-[80px] sm:min-h-[100px] ${
+                        selectedAdminSlots.includes(slot.hour) ? 'bg-amber-500/20 border-amber-500/50 ring-1 ring-amber-500/50'
+                        : slot.status === 'blocked' ? 'bg-surface-700/50 border-surface-600/30 cursor-not-allowed'
+                        : slot.status === 'booked' ? 'bg-primary-500/10 border-primary-500/20 opacity-60 cursor-not-allowed'
+                        : 'bg-white/5 border-white/5 hover:border-primary-500/30'
+                      }`}>
                       <span className="text-[10px] sm:text-xs font-black text-surface-400 mb-1 sm:mb-2">{formatHour(slot.hour)}</span>
                       <span className={`text-[9px] sm:text-[10px] font-bold uppercase mb-2 sm:mb-3 ${slot.status === 'available' ? 'text-green-400' : 'text-surface-500'}`}>{slot.status}</span>
-                      {slot.status === 'available' && (
-                        <button onClick={() => handleBlockSlot(slot.hour)} className="text-[9px] sm:text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 sm:py-1 rounded hover:bg-red-500/30 transition">Block</button>
-                      )}
                       {slot.status === 'blocked' && (
-                        <button onClick={() => handleUnblockSlot(slot.hour)} className="text-[9px] sm:text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 sm:py-1 rounded hover:bg-green-500/30 transition">Unblock</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleUnblockSlot(slot.hour); }} className="text-[9px] sm:text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 sm:py-1 rounded hover:bg-green-500/30 transition z-10 relative">Unblock</button>
+                      )}
+                      {slot.status === 'available' && !selectedAdminSlots.includes(slot.hour) && (
+                        <span className="text-[9px] sm:text-[10px] bg-white/5 text-surface-400 px-2 py-0.5 sm:py-1 rounded transition">Select</span>
+                      )}
+                      {selectedAdminSlots.includes(slot.hour) && (
+                        <span className="text-[9px] sm:text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 sm:py-1 rounded font-bold">Selected</span>
                       )}
                     </div>
                   ));
@@ -1107,7 +1114,7 @@ const AdminDashboard: React.FC = () => {
                   {blockedSlots.map((bs) => (
                     <div key={bs._id} className="flex items-center justify-between p-2.5 sm:p-3 bg-white/5 rounded-lg">
                       <div className="min-w-0">
-                        <span className="text-xs sm:text-sm text-white">Turf {bs.turfId} · {formatHour(bs.startHour)}</span>
+                        <span className="text-xs sm:text-sm text-white">Arena {bs.turfId === 'A' ? '1' : '2'} · {formatHour(bs.startHour)}</span>
                         {bs.reason && <span className="text-[10px] sm:text-xs text-surface-400 ml-2 truncate">{bs.reason}</span>}
                       </div>
                       <button onClick={() => handleUnblockSlot(bs.startHour, bs.date, bs.turfId)} className="text-[10px] sm:text-xs text-green-400 bg-green-500/15 px-2 py-1 rounded flex-shrink-0 ml-2">Unblock</button>
@@ -1119,6 +1126,19 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Selection Action Bar for Admin */}
+        {selectedAdminSlots.length > 0 && activeTab === 'slots' && (
+          <div className="fixed bottom-6 inset-x-0 mx-auto w-[90%] max-w-2xl z-50 animate-slide-up">
+            <div className="bg-surface-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-white font-bold">{selectedAdminSlots.length} {selectedAdminSlots.length === 1 ? 'Slot' : 'Slots'} Selected</span>
+              <div className="flex gap-3">
+                <button onClick={() => setSelectedAdminSlots([])} className="text-surface-400 hover:text-white px-3 py-2 text-sm transition font-medium">Clear</button>
+                <button onClick={() => { setWalkinName(''); setWalkinPhone(''); setShowBlockModal(true); }} className="btn-primary py-2 px-6 shadow-xl text-sm whitespace-nowrap">Block / Walk-in</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ═══ PRICING TAB ═══ */}
         {activeTab === 'pricing' && (
           <div className="animate-fade-in space-y-4 sm:space-y-6">
@@ -1126,7 +1146,7 @@ const AdminDashboard: React.FC = () => {
               {(['A', 'B'] as TurfId[]).map((t) => (
                 <button key={t} onClick={() => setSelectedTurf(t)}
                   className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all ${selectedTurf === t ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30 ring-1 ring-primary-500/50' : 'bg-white/5 text-surface-400 border border-white/5 hover:bg-white/10'
-                    }`}>Turf {t}</button>
+                    }`}>Arena {t === 'A' ? '1' : '2'}</button>
               ))}
             </div>
 
@@ -1175,7 +1195,7 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
               <p className="text-xs text-surface-400 font-bold uppercase tracking-widest">Selected Slot</p>
-              <p className="text-white font-black">Turf {selectedTurf} · {formatDate(selectedDate)} · {blockHour !== null && formatHour(blockHour)}</p>
+              <p className="text-white font-black">Arena {selectedTurf === 'A' ? '1' : '2'} · {formatDate(selectedDate)} · {selectedAdminSlots.map(h => formatHour(h)).join(', ')}</p>
             </div>
 
             {/* Info banner */}
@@ -1282,7 +1302,7 @@ const AdminDashboard: React.FC = () => {
 
             <h3 className="text-2xl font-display font-black text-white mb-2">Mark as Collected?</h3>
             <p className="text-surface-400 text-sm mb-8 leading-relaxed">
-              Confirm that the pending balance has been collected in cash at the turf. This will update the booking status to fully paid.
+              Confirm that the pending balance has been collected in cash at the arena. This will update the booking status to fully paid.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">

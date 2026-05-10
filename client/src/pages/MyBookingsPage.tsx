@@ -157,7 +157,7 @@ const MyBookingsPage: React.FC = () => {
           <h1 className="text-3xl sm:text-4xl font-display font-black text-white">
             My <span className="gradient-text">Bookings</span>
           </h1>
-          <p className="text-surface-400 mt-2">View and manage your turf bookings</p>
+          <p className="text-surface-400 mt-2">View and manage your arena bookings</p>
         </div>
 
         {/* Sleek Stats Section */}
@@ -244,7 +244,7 @@ const MyBookingsPage: React.FC = () => {
 
                 <div className="p-3 sm:px-5 sm:py-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* Left: Turf Branding */}
+                    {/* Left: Arena 2randing */}
                     <div className="flex items-center gap-3 flex-1">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden ${
                         booking.turfId === 'A' ? 'bg-primary-500/10' : 'bg-accent-500/10'

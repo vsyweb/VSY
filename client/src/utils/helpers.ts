@@ -67,7 +67,7 @@ export const getDayName = (dateStr: string): string => {
 export const isWeekend = (dateStr: string): boolean => {
   const date = new Date(dateStr + 'T00:00:00');
   const day = date.getDay();
-  return day === 0 || day === 6;
+  return day === 0 || day === 5 || day === 6;
 };
 
 /**

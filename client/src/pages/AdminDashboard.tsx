@@ -42,7 +42,7 @@ const groupBookingsList = (bookingsList: any[]) => {
   if (!bookingsList || !Array.isArray(bookingsList)) return [];
   const groups: { [key: string]: any } = {};
   bookingsList.forEach((booking: any) => {
-    const key = booking.razorpayOrderId || booking._id;
+    const key = booking.razorpayOrderId || booking.groupId || booking._id;
     if (!groups[key]) {
       groups[key] = {
         ...booking,
@@ -102,6 +102,7 @@ const AdminDashboard: React.FC = () => {
   const [selectedAdminSlots, setSelectedAdminSlots] = useState<number[]>([]);
   const [walkinName, setWalkinName] = useState('');
   const [walkinPhone, setWalkinPhone] = useState('');
+  const [walkinBallType, setWalkinBallType] = useState<string>('none');
   const [blockingInProgress, setBlockingInProgress] = useState(false);
 
   const [showUpcoming, setShowUpcoming] = useState(false);
@@ -308,7 +309,8 @@ const AdminDashboard: React.FC = () => {
         selectedAdminSlots,
         walkinName ? `Walk-in: ${walkinName}` : 'Admin Block',
         walkinPhone,
-        walkinName
+        walkinName,
+        walkinPhone ? walkinBallType : 'none'
       );
 
       if (res.success) {
@@ -1222,12 +1224,42 @@ const AdminDashboard: React.FC = () => {
                 <label className="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">Customer Name <span className="text-surface-600 normal-case font-medium">(optional)</span></label>
                 <input
                   type="text"
+                  className="input-field"
+                  placeholder="e.g. John Doe"
                   value={walkinName}
                   onChange={(e) => setWalkinName(e.target.value)}
-                  placeholder="Enter name"
-                  className="input-field"
                 />
               </div>
+
+              {/* Ball Type Selection (Only if phone is entered, implying Walk-in booking) */}
+              {walkinPhone && (
+                <div className="pt-2 animate-fade-in">
+                  <label className="block text-xs font-black text-surface-500 uppercase tracking-widest mb-2">
+                    Select Ball <span className="text-primary-400 normal-case font-medium">(Optional)</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'none', label: 'None', price: 0 },
+                      { id: 'light_tennis', label: 'Light', price: 80 },
+                      { id: 'hard_tennis', label: 'Hard', price: 100 },
+                    ].map((ball) => (
+                      <button
+                        key={ball.id}
+                        type="button"
+                        onClick={() => setWalkinBallType(ball.id)}
+                        className={`flex flex-col items-center p-2 rounded-xl border transition-all ${
+                          walkinBallType === ball.id
+                            ? 'bg-primary-500/20 border-primary-500 ring-1 ring-primary-500/30'
+                            : 'bg-white/5 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-[10px] sm:text-xs font-black text-white uppercase text-center mb-0.5">{ball.label}</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-surface-400">{ball.price > 0 ? `₹${ball.price}` : 'Free'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">

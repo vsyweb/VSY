@@ -164,7 +164,8 @@ export const blockSlotAdmin = async (
   startHours: number[], 
   reason?: string,
   phoneNumber?: string,
-  customerName?: string
+  customerName?: string,
+  ballType?: string
 ) => {
   const res = await api.post<ApiResponse>('/admin/slots/block', { 
     turfId, 
@@ -172,7 +173,8 @@ export const blockSlotAdmin = async (
     startHours, 
     reason,
     phoneNumber,
-    customerName
+    customerName,
+    ballType
   });
   return res.data;
 };

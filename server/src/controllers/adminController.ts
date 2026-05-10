@@ -215,7 +215,7 @@ export const adminCollectPayment = async (req: Request, res: Response): Promise<
  */
 export const blockSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { turfId, date, reason, phoneNumber, customerName } = req.body;
+    const { turfId, date, reason, phoneNumber, customerName, ballType = 'none' } = req.body;
     let { startHour, startHours } = req.body;
     const adminId = req.userId;
 
@@ -227,6 +227,22 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, message: 'Invalid start hours' });
       return;
     }
+
+    // Convert to numbers to avoid string concatenation bugs during chunking
+    const numericStartHours = startHours.map(Number).sort((a: number, b: number) => a - b);
+    
+    const chunks: number[][] = [];
+    let currentChunk = [numericStartHours[0]];
+
+    for (let i = 1; i < numericStartHours.length; i++) {
+      if (numericStartHours[i] === numericStartHours[i - 1] + 1) {
+        currentChunk.push(numericStartHours[i]);
+      } else {
+        chunks.push(currentChunk);
+        currentChunk = [numericStartHours[i]];
+      }
+    }
+    chunks.push(currentChunk);
 
     // If phone number is provided, it's a Walk-in Booking
     if (phoneNumber) {
@@ -243,40 +259,65 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
       }
 
       const pricingRules = await PricingRule.find({ isActive: true }).lean();
+      const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
       
-      const bookings = await Promise.all(startHours.map(async (hour: number) => {
-        const price = calculatePrice({ turfId, date, startHour: hour }, pricingRules);
-        return await Booking.create({
-          userId: user._id,
-          turfId,
-          date,
-          startHour: hour,
-          totalAmount: price,
-          paidAmount: price,
-          paymentType: 'full',
-          status: 'confirmed',
-          razorpayOrderId: `WALKIN-${Date.now()}-${hour}`,
-          razorpayPaymentId: 'CASH_PAYMENT',
-          razorpaySignature: 'ADMIN_COLLECTED'
-        });
-      }));
+      const allBookings = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const razorpayOrderId = `WALKIN-${Date.now()}-C${i}`;
+        
+        for (let j = 0; j < chunk.length; j++) {
+          const hour = chunk[j];
+          const isFirstBooking = j === 0;
+          const currentBallType = isFirstBooking ? ballType : 'none';
+          const ballAmount = isFirstBooking ? (BALL_PRICES[ballType] || 0) : 0;
+          
+          let price = calculatePrice({ turfId, date, startHour: hour }, pricingRules);
+          price += ballAmount;
 
-      res.status(201).json({ success: true, message: 'Walk-in booking created successfully', data: bookings });
+          const booking = await Booking.create({
+            userId: user._id,
+            turfId,
+            date,
+            startHour: hour,
+            totalAmount: price,
+            paidAmount: price,
+            paymentType: 'full',
+            status: 'confirmed',
+            razorpayOrderId,
+            razorpayPaymentId: 'CASH_PAYMENT',
+            razorpaySignature: 'ADMIN_COLLECTED',
+            ballType: currentBallType,
+            ballAmount: isFirstBooking ? ballAmount : 0
+          });
+          allBookings.push(booking);
+        }
+      }
+
+      res.status(201).json({ success: true, message: 'Walk-in booking created successfully', data: allBookings });
       return;
     }
 
     // If no phone number, it's a maintenance block
-    const blocked = await Promise.all(startHours.map(async (hour: number) => {
-      return await BlockedSlot.create({
-        turfId,
-        date,
-        startHour: hour,
-        reason: reason || 'Admin Block',
-        blockedBy: new mongoose.Types.ObjectId(adminId),
-      });
-    }));
+    const allBlocks = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const groupId = `BLOCK-${Date.now()}-C${i}`;
+      for (let j = 0; j < chunk.length; j++) {
+        const hour = chunk[j];
+        const blocked = await BlockedSlot.create({
+          turfId,
+          date,
+          startHour: hour,
+          reason: reason || 'Admin Block',
+          blockedBy: new mongoose.Types.ObjectId(adminId),
+          groupId
+        });
+        allBlocks.push(blocked);
+      }
+    }
 
-    res.status(201).json({ success: true, message: 'Slots blocked successfully', data: blocked });
+    res.status(201).json({ success: true, message: 'Slots blocked successfully', data: allBlocks });
   } catch (error) {
     console.error('Block slot error:', error);
     res.status(500).json({ success: false, message: 'Failed to process request' });

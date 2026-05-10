@@ -32,6 +32,10 @@ const blockedSlotSchema = new Schema<BlockedSlotDocument>(
       type: String,
       default: '',
     },
+    groupId: {
+      type: String,
+      required: false,
+    },
     blockedBy: {
       type: Schema.Types.ObjectId,
       ref: 'Admin',

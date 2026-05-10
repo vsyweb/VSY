@@ -251,11 +251,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
             {/* Ball Type Selection */}
             <div className="space-y-2 sm:space-y-3">
               <p className="text-[9px] sm:text-[10px] text-surface-400 font-bold uppercase tracking-widest">Select Ball</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'light_tennis', label: 'Light', price: 80, desc: 'Tennis' },
                   { id: 'hard_tennis', label: 'Hard', price: 100, desc: 'Tennis' },
-                  { id: 'old_ball', label: 'Old Ball', price: 0, desc: 'If Avail' },
                 ].map((ball) => (
                   <button
                     key={ball.id}
@@ -272,13 +271,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   </button>
                 ))}
               </div>
-              {ballType === 'old_ball' && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-2">
-                  <p className="text-[9px] sm:text-[10px] text-amber-400/90 text-center font-medium leading-tight">
-                    * Old balls are provided free of cost, but are strictly <b>subject to availability</b> at the turf.
-                  </p>
-                </div>
-              )}
+
             </div>
 
             {/* Payment Option Selection */}

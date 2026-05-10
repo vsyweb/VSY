@@ -57,6 +57,9 @@ const groupBookingsList = (bookingsList: any[]) => {
       groups[key].endHour = Math.max(...groups[key].startHours) + 1;
       groups[key].totalAmountGrouped += (Number(booking.totalAmount) || 0);
       groups[key].paidAmountGrouped += (Number(booking.paidAmount) || 0);
+      if (booking.ballType && booking.ballType !== 'none') {
+        groups[key].ballType = booking.ballType;
+      }
     }
   });
   // Sort back to their original rough order based on createdAt or date
@@ -173,6 +176,9 @@ const AdminDashboard: React.FC = () => {
             groups[key].endHour = Math.max(...groups[key].startHours) + 1;
             groups[key].totalAmountGrouped += (Number(booking.totalAmount) || 0);
             groups[key].paidAmountGrouped += (Number((booking as any).paidAmount) || Number(booking.paidAmount) || 0);
+            if (booking.ballType && booking.ballType !== 'none') {
+              groups[key].ballType = booking.ballType;
+            }
             groups[key].subBookings.push(booking);
           }
         });
@@ -704,6 +710,7 @@ const AdminDashboard: React.FC = () => {
                               <p className="text-xs sm:text-sm font-bold text-white truncate">{user?.name || user?.phone || 'Guest'}</p>
                               <p className="text-[10px] sm:text-xs text-surface-500 truncate">
                                 Turf {booking.turfId} · {formatDate(booking.date)} · {(booking.startHours?.length ?? 0) > 1 ? `${booking.startHours?.length} Slots: ` : ''}{formatHour(booking.startHours?.[0] ?? booking.startHour)} - {formatHour(booking.endHour ?? booking.startHour + 1)}
+                                {booking.ballType && booking.ballType !== 'none' && ` · 🏏 ${booking.ballType.replace('_', ' ')}`}
                               </p>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -883,12 +890,15 @@ const AdminDashboard: React.FC = () => {
                             }`}>{b.status === 'confirmed' && isPastSlot(b.date, b.startHour) ? 'COMPLETED' : b.status}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className={`px-1.5 py-0.5 rounded font-black text-[10px] ${b.turfId === 'A' ? 'bg-primary-500/20 text-primary-400' : 'bg-accent-500/20 text-accent-400'}`}>
                               Turf {b.turfId}
                             </span>
                             <span className="text-surface-400">{formatDate(b.date)}</span>
                             <span className="text-primary-400 font-bold">{(b.startHours?.length ?? 0) > 1 ? `${b.startHours?.length} Slots: ` : ''} {formatHour(b.startHours?.[0] ?? b.startHour)} - {formatHour(b.endHour ?? b.startHour + 1)}</span>
+                            {b.ballType && b.ballType !== 'none' && (
+                              <span className="text-accent-400 text-[10px] font-bold capitalize px-1.5 py-0.5 bg-accent-500/10 rounded">🏏 {b.ballType.replace('_', ' ')}</span>
+                            )}
                           </div>
                         </div>
                         <div className="pt-3 border-t border-white/5 space-y-2">
@@ -972,6 +982,9 @@ const AdminDashboard: React.FC = () => {
                             <td className="py-3 px-4">
                               <p className="text-sm font-bold text-white">{formatDate(b.date)}</p>
                               <p className="text-xs text-primary-400 font-bold">{(b.startHours?.length ?? 0) > 1 ? `${b.startHours?.length} Slots: ` : ''} {formatHour(b.startHours?.[0] ?? b.startHour)} - {formatHour(b.endHour ?? b.startHour + 1)}</p>
+                              {b.ballType && b.ballType !== 'none' && (
+                                <p className="text-[10px] text-accent-400 font-bold capitalize mt-0.5">🏏 {b.ballType.replace('_', ' ')}</p>
+                              )}
                             </td>
                             <td className="py-3 px-4">
                               <div className="space-y-1">

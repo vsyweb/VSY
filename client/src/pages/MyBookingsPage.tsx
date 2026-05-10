@@ -38,6 +38,9 @@ const MyBookingsPage: React.FC = () => {
             groups[key].endHour = Math.max(...groups[key].startHours) + 1;
             groups[key].totalAmountGrouped += (Number(booking.totalAmount) || 0);
             groups[key].paidAmountGrouped += (Number((booking as any).paidAmount) || Number(booking.paidAmount) || 0);
+            if (booking.ballType && booking.ballType !== 'none') {
+              groups[key].ballType = booking.ballType;
+            }
             groups[key].subBookings.push(booking);
           }
         });
@@ -281,6 +284,12 @@ const MyBookingsPage: React.FC = () => {
                               {booking.startHours?.length > 1 ? `${booking.startHours.length} Slots: ` : ''}
                               <span className="text-surface-200 font-bold">{formatHour(booking.startHours[0])} - {formatHour(booking.endHour)}</span>
                            </span>
+                           {booking.ballType && booking.ballType !== 'none' && (
+                             <span className="flex items-center gap-1.5">
+                                <MdSportsCricket size={14} className="text-accent-400/70" />
+                                <span className="text-surface-200 font-bold capitalize">{booking.ballType.replace('_', ' ')}</span>
+                             </span>
+                           )}
                         </div>
                       </div>
                     </div>

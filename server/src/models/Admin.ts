@@ -25,6 +25,12 @@ const adminSchema = new Schema<AdminDocument>(
       required: true,
       trim: true,
     },
+    role: {
+      type: String,
+      enum: ['admin', 'worker'],
+      default: 'admin',
+      required: true,
+    },
   },
   {
     timestamps: true,

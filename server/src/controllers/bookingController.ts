@@ -1,9 +1,15 @@
 import { Request, Response } from 'express';
 import { Booking } from '../models/Booking';
 import { SlotLock } from '../models/SlotLock';
+import { Coupon } from '../models/Coupon';
 import { isSlotAvailable } from '../services/slotService';
 import { createOrder, verifyPaymentSignature } from '../services/paymentService';
 import { getSlotPrice } from '../services/pricingService';
+import {
+  getOrderPaymentStatus,
+  schedulePaymentVerificationRetries,
+  verifyAndReconcilePayment,
+} from '../services/paymentVerificationService';
 import { isValidDate, isValidHour, isFutureOrToday } from '../utils/helpers';
 import { TurfId } from '../types';
 import { config } from '../config/env';
@@ -14,7 +20,7 @@ import mongoose from 'mongoose';
  */
 export const createBooking = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { turfId, date, startHours, paymentType = 'full', ballType = 'none' } = req.body;
+    const { turfId, date, startHours, paymentType = 'full', ballType = 'none', couponCode } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -79,9 +85,35 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
       bookingsData.push({ hour, price });
     }
 
+    // --- Coupon Validation ---
+    let discountAmount = 0;
+    let appliedCoupon: any = null;
+    if (couponCode && typeof couponCode === 'string' && couponCode.trim() !== '') {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim() });
+      if (coupon && coupon.isActive) {
+        const now = new Date();
+        const withinExpiry = !coupon.expiresAt || now <= new Date(coupon.expiresAt);
+        const withinUsage = coupon.maxUses === 0 || coupon.usedCount < coupon.maxUses;
+        const paymentTypeAllowed = coupon.applicableTo === 'both' || paymentType === 'full';
+        const meetsMinAmount = totalBookingAmount >= coupon.minBookingAmount;
+
+        if (withinExpiry && withinUsage && paymentTypeAllowed && meetsMinAmount) {
+          if (coupon.discountType === 'percentage') {
+            discountAmount = Math.round((totalBookingAmount * coupon.discountValue) / 100);
+          } else {
+            discountAmount = Math.min(coupon.discountValue, totalBookingAmount);
+          }
+          appliedCoupon = coupon;
+        }
+      }
+    }
+
+    // Effective total after discount
+    const effectiveTotal = totalBookingAmount - discountAmount;
+
     // Calculate amount to pay now
-    const amountToPay = paymentType === 'advance' ? Math.round(totalBookingAmount * 0.3) : totalBookingAmount;
-    console.log('--- DEBUG ---', { ballType, ballAmount, totalBookingAmount, bookingsData });
+    const amountToPay = paymentType === 'advance' ? Math.round(effectiveTotal * 0.3) : effectiveTotal;
+    console.log('--- DEBUG ---', { ballType, ballAmount, totalBookingAmount, discountAmount, effectiveTotal, bookingsData });
 
     // Create Razorpay order for the amount to pay
     // Shorten bookingRef to stay under Razorpay's 40-char limit for receipt
@@ -95,26 +127,37 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
         const isFirstBooking = index === 0;
         const currentBallAmount = isFirstBooking ? ballAmount : 0;
         const currentBallType = isFirstBooking ? ballType : 'none';
-        
+        // Apply full discount to the first booking slot
         const slotPrice = data.price + currentBallAmount;
+        const effectiveSlotPrice = index === 0 ? Math.max(0, slotPrice - discountAmount) : slotPrice;
         // For individual records, we split the paid amount proportionally
-        const individualPaidAmount = paymentType === 'advance' ? Math.round(slotPrice * 0.3) : slotPrice;
+        const individualPaidAmount = paymentType === 'advance' ? Math.round(effectiveSlotPrice * 0.3) : effectiveSlotPrice;
 
         return await Booking.create({
           userId: new mongoose.Types.ObjectId(userId),
           turfId,
           date,
           startHour: data.hour,
-          totalAmount: slotPrice,
+          totalAmount: effectiveSlotPrice,
           paidAmount: individualPaidAmount,
           paymentType,
           status: 'pending',
+          paymentStatus: 'PROCESSING',
           razorpayOrderId: order.orderId,
           ballType: currentBallType,
           ballAmount: currentBallAmount,
+          couponCode: appliedCoupon ? appliedCoupon.code : '',
+          discountAmount: index === 0 ? discountAmount : 0,
         });
       })
     );
+
+    // Increment coupon usage count after bookings are created
+    if (appliedCoupon) {
+      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usedCount: 1 } });
+    }
+
+    schedulePaymentVerificationRetries(order.orderId);
 
     res.status(201).json({
       success: true,
@@ -130,6 +173,9 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
         startHours: hours,
         paymentType,
         totalBookingAmount,
+        discountAmount,
+        effectiveTotal,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
       },
     });
   } catch (error) {
@@ -160,52 +206,162 @@ export const verifyPayment = async (req: Request, res: Response): Promise<void> 
     const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
 
     if (!isValid) {
-      // Mark all pending bookings for this order as failed
-      await Booking.updateMany(
-        { razorpayOrderId, status: 'pending' },
-        { status: 'failed' }
-      );
-      res.status(400).json({ success: false, message: 'Payment verification failed' });
+      schedulePaymentVerificationRetries(razorpayOrderId);
+      await verifyAndReconcilePayment({
+        razorpayOrderId,
+        razorpayPaymentId,
+        source: 'frontend_callback',
+      });
+      res.status(400).json({
+        success: false,
+        message: 'Payment signature invalid. Verification retry started.',
+      });
       return;
     }
 
-    // Find all pending bookings for this order
-    const bookings = await Booking.find({
+    const result = await verifyAndReconcilePayment({
       razorpayOrderId,
-      status: 'pending',
+      razorpayPaymentId,
+      razorpaySignature,
+      source: 'frontend_callback',
     });
 
-    if (bookings.length === 0) {
-      res.status(404).json({ success: false, message: 'No pending bookings found for this order' });
+    if (result.paymentStatus === 'SUCCESS') {
+      res.status(200).json({
+        success: true,
+        message: 'Payment verified and booking confirmed.',
+        data: {
+          razorpayOrderId,
+          paymentStatus: result.paymentStatus,
+          bookingStatus: result.bookingStatus,
+        },
+      });
       return;
     }
 
-    // Confirm all bookings
-    for (const booking of bookings) {
-      booking.status = 'confirmed';
-      booking.razorpayPaymentId = razorpayPaymentId;
-      booking.razorpaySignature = razorpaySignature;
-      await booking.save();
-
-      // Remove the slot lock
-      await SlotLock.deleteOne({
-        turfId: booking.turfId,
-        date: booking.date,
-        startHour: booking.startHour,
+    if (result.paymentStatus === 'FAILED') {
+      res.status(400).json({
+        success: false,
+        message: 'Payment failed',
+        data: {
+          razorpayOrderId,
+          paymentStatus: result.paymentStatus,
+          bookingStatus: result.bookingStatus,
+        },
       });
+      return;
     }
 
-    res.status(200).json({
+    schedulePaymentVerificationRetries(razorpayOrderId);
+
+    res.status(202).json({
       success: true,
-      message: `Payment verified! ${bookings.length} slot(s) confirmed.`,
+      message: 'Payment is being verified. Please wait...',
       data: {
-        count: bookings.length,
         razorpayOrderId,
-        status: 'confirmed',
+        paymentStatus: result.paymentStatus,
+        bookingStatus: result.bookingStatus,
       },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Payment verification failed';
+    res.status(500).json({ success: false, message });
+  }
+};
+
+/**
+ * Poll payment status for an order while callback reconciliation is in progress.
+ */
+export const getPaymentStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
+
+    if (!orderId) {
+      res.status(400).json({ success: false, message: 'Missing order ID' });
+      return;
+    }
+
+    const booking = await Booking.findOne({
+      razorpayOrderId: orderId,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).select('_id');
+
+    if (!booking) {
+      res.status(404).json({ success: false, message: 'Booking not found for this order' });
+      return;
+    }
+
+    const status = await getOrderPaymentStatus(orderId);
+    if (!status) {
+      res.status(404).json({ success: false, message: 'Payment record not found' });
+      return;
+    }
+
+    if (status.paymentStatus === 'PROCESSING') {
+      schedulePaymentVerificationRetries(orderId);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: status.paymentStatus === 'PROCESSING' ? 'Payment is being verified. Please wait...' : 'Payment status updated',
+      data: {
+        razorpayOrderId: orderId,
+        paymentStatus: status.paymentStatus,
+        bookingStatus: status.bookingStatus,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get payment status';
+    res.status(500).json({ success: false, message });
+  }
+};
+
+/**
+ * Razorpay webhook reconciliation endpoint.
+ */
+export const handleRazorpayWebhook = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const event = req.body?.event;
+    const payment = req.body?.payload?.payment?.entity;
+    const razorpayOrderId = payment?.order_id as string | undefined;
+    const razorpayPaymentId = payment?.id as string | undefined;
+
+    if (!razorpayOrderId) {
+      res.status(200).json({ success: true, message: 'Webhook ignored: no payment data' });
+      return;
+    }
+
+    const explicitFailure = event === 'payment.failed' || payment?.status === 'failed';
+    const result = await verifyAndReconcilePayment({
+      razorpayOrderId,
+      razorpayPaymentId,
+      source: 'webhook',
+      explicitFailure,
+    });
+
+    console.log(
+      JSON.stringify({
+        event: 'Webhook Reconciled Payment',
+        at: new Date().toISOString(),
+        razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId || null,
+        paymentStatus: result.paymentStatus,
+      })
+    );
+
+    if (result.paymentStatus === 'PROCESSING') {
+      schedulePaymentVerificationRetries(razorpayOrderId);
+    }
+
+    res.status(200).json({ success: true, message: 'Webhook processed' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Webhook processing failed';
     res.status(500).json({ success: false, message });
   }
 };

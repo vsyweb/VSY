@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { adminLogin } from '../services/api';
 import toast from 'react-hot-toast';
 import { MdEmail, MdLock, MdArrowForward, MdArrowBack } from 'react-icons/md';
-import CricketLoginAnimation from '../components/CricketLoginAnimation';
 
 const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
   const { loginAdmin } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +24,6 @@ const AdminLoginPage: React.FC = () => {
       const res = await adminLogin(email, password);
       if (res.success && res.data) {
         loginAdmin(res.data.token, res.data.admin);
-        setIsAnimating(true);
       } else {
         toast.error(res.message);
       }
@@ -45,12 +41,6 @@ const AdminLoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-surface-950 flex items-center justify-center px-4 relative overflow-hidden">
-      {isAnimating && (
-        <CricketLoginAnimation 
-          onComplete={() => navigate('/admin')} 
-          brandName="VSY PRO ADMIN" 
-        />
-      )}
       {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl" />
@@ -106,7 +96,7 @@ const AdminLoginPage: React.FC = () => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  Login as Admin <MdArrowForward size={18} />
+                  Login <MdArrowForward size={18} />
                 </>
               )}
             </button>

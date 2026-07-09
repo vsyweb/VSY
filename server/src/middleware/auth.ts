@@ -8,7 +8,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
-      userRole?: 'user' | 'admin';
+      userRole?: 'user' | 'admin' | 'worker';
     }
   }
 }
@@ -42,6 +42,17 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
 export const adminMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   if (req.userRole !== 'admin') {
     res.status(403).json({ success: false, message: 'Admin access required' });
+    return;
+  }
+  next();
+};
+
+/**
+ * Middleware to ensure the user is an admin or a worker.
+ */
+export const adminOrWorkerMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  if (req.userRole !== 'admin' && req.userRole !== 'worker') {
+    res.status(403).json({ success: false, message: 'Access denied' });
     return;
   }
   next();

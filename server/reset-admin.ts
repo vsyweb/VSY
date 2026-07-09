@@ -16,19 +16,29 @@ const run = async () => {
   await mongoose.connect(MONGO_URI);
   console.log('Connected to MongoDB:', MONGO_URI);
 
-  // Delete existing admin and re-create with correct password
+  // Delete existing admin/worker and re-create with correct password
   const deleted = await Admin.deleteMany({});
-  console.log(`Deleted ${deleted.deletedCount} existing admin(s)`);
+  console.log(`Deleted ${deleted.deletedCount} existing account(s)`);
 
   await Admin.create({
     name: 'VSY Admin',
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
+    role: 'admin',
   });
 
-  console.log('\n✅ Admin reset successfully!');
-  console.log(`📧 Email:    ${ADMIN_EMAIL}`);
-  console.log(`🔑 Password: ${ADMIN_PASSWORD}`);
+  await Admin.create({
+    name: 'VSY Worker',
+    email: 'bookings@vsy.com',
+    password: '123456',
+    role: 'worker',
+  });
+
+  console.log('\n✅ Accounts reset successfully!');
+  console.log(`📧 Admin Email:    ${ADMIN_EMAIL}`);
+  console.log(`🔑 Admin Password: ${ADMIN_PASSWORD}`);
+  console.log(`📧 Worker Email:   bookings@vsy.com`);
+  console.log(`🔑 Worker Password: 123456`);
 
   await mongoose.disconnect();
   process.exit(0);

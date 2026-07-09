@@ -12,8 +12,21 @@ export const seedAdmin = async () => {
         name: 'VSY Admin',
         email: process.env.ADMIN_EMAIL || 'admin@vsyboxcricket.com',
         password: process.env.ADMIN_PASSWORD || 'adminpassword123',
+        role: 'admin',
       });
       console.log(`✅ Default admin seeded: ${process.env.ADMIN_EMAIL || 'admin@vsyboxcricket.com'}`);
+    }
+
+    const workerEmail = 'bookings@vsy.com';
+    const workerExists = await Admin.findOne({ email: workerEmail });
+    if (!workerExists) {
+      await Admin.create({
+        name: 'VSY Worker',
+        email: workerEmail,
+        password: '123456',
+        role: 'worker',
+      });
+      console.log(`✅ Default worker seeded: ${workerEmail}`);
     }
     
     // Also seed default pricing if empty or outdated

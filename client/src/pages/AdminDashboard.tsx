@@ -15,9 +15,13 @@ import {
   updatePricingRule,
   getSlots,
   migrateWalkIns,
+  getAllCoupons,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon,
 } from '../services/api';
 import { formatDate, formatHour, formatCurrency, getDateRange, getTodayStr, getRelativeTime, isPastSlot } from '../utils/helpers';
-import type { DashboardStats, Booking, PricingRule, BlockedSlotInfo, TurfId, SlotInfo } from '../types';
+import type { DashboardStats, Booking, PricingRule, BlockedSlotInfo, TurfId, SlotInfo, Coupon } from '../types';
 import toast from 'react-hot-toast';
 import {
   MdDashboard,
@@ -34,9 +38,14 @@ import {
   MdChevronLeft,
   MdChevronRight,
   MdClose,
+  MdLocalOffer,
+  MdAdd,
+  MdDelete,
+  MdToggleOn,
+  MdToggleOff,
 } from 'react-icons/md';
 
-type AdminTab = 'dashboard' | 'bookings' | 'slots' | 'pricing';
+type AdminTab = 'dashboard' | 'bookings' | 'slots' | 'pricing' | 'coupons';
 
 const groupBookingsList = (bookingsList: any[]) => {
   if (!bookingsList || !Array.isArray(bookingsList)) return [];
@@ -103,6 +112,8 @@ const AdminDashboard: React.FC = () => {
   const [walkinName, setWalkinName] = useState('');
   const [walkinPhone, setWalkinPhone] = useState('');
   const [walkinBallType, setWalkinBallType] = useState<string>('none');
+  const [walkinPaymentType, setWalkinPaymentType] = useState<'full' | 'advance'>('full');
+  const [customAdvanceAmount, setCustomAdvanceAmount] = useState<string>('');
   const [blockingInProgress, setBlockingInProgress] = useState(false);
 
   const [showUpcoming, setShowUpcoming] = useState(false);
@@ -117,6 +128,23 @@ const AdminDashboard: React.FC = () => {
   const [cancellingBooking, setCancellingBooking] = useState(false);
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
   const [collectingPayment, setCollectingPayment] = useState(false);
+
+  // Coupon state
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [showAddCoupon, setShowAddCoupon] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    discountType: 'percentage' as 'percentage' | 'flat',
+    discountValue: '',
+    applicableTo: 'both' as 'full' | 'both',
+    minBookingAmount: '',
+    maxUses: '',
+    expiresAt: '',
+    isActive: true,
+  });
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null);
 
   // Memoize dates so the array reference is stable across renders.
   // Without this, DatePicker re-mounts every render → double-click needed to select a date.
@@ -246,11 +274,85 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
   useEffect(() => { if (activeTab === 'slots') fetchSlots(); }, [activeTab, fetchSlots]);
   useEffect(() => { if (activeTab === 'pricing') fetchPricing(); }, [activeTab, fetchPricing]);
+  useEffect(() => { if (activeTab === 'coupons') fetchCoupons(); }, [activeTab]);
 
   // Silently migrate any old walk-in BlockedSlots to real Bookings on first load
   useEffect(() => {
     migrateWalkIns().catch(() => {/* silent */ });
   }, []);
+
+  const fetchCoupons = useCallback(async () => {
+    setLoadingCoupons(true);
+    try {
+      const res = await getAllCoupons();
+      if (res.success && res.data) setCoupons(res.data);
+    } catch {
+      toast.error('Failed to load coupons');
+    } finally {
+      setLoadingCoupons(false);
+    }
+  }, []);
+
+  const handleCreateCoupon = async () => {
+    if (!couponForm.code.trim() || !couponForm.discountValue) {
+      toast.error('Code and discount value are required');
+      return;
+    }
+    setSavingCoupon(true);
+    try {
+      const res = await createCoupon({
+        code: couponForm.code.trim().toUpperCase(),
+        discountType: couponForm.discountType,
+        discountValue: Number(couponForm.discountValue),
+        applicableTo: couponForm.applicableTo,
+        minBookingAmount: couponForm.minBookingAmount ? Number(couponForm.minBookingAmount) : 0,
+        maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : 0,
+        expiresAt: couponForm.expiresAt || undefined,
+        isActive: couponForm.isActive,
+      });
+      if (res.success) {
+        toast.success('Coupon created!');
+        setShowAddCoupon(false);
+        setCouponForm({ code: '', discountType: 'percentage', discountValue: '', applicableTo: 'both', minBookingAmount: '', maxUses: '', expiresAt: '', isActive: true });
+        fetchCoupons();
+      } else {
+        toast.error(res.message || 'Failed to create coupon');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to create coupon');
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleToggleCoupon = async (coupon: Coupon) => {
+    try {
+      const res = await updateCoupon(coupon._id, { isActive: !coupon.isActive });
+      if (res.success) {
+        toast.success(`Coupon ${!coupon.isActive ? 'activated' : 'deactivated'}`);
+        fetchCoupons();
+      }
+    } catch {
+      toast.error('Failed to update coupon');
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    setDeletingCouponId(id);
+    try {
+      const res = await deleteCoupon(id);
+      if (res.success) {
+        toast.success('Coupon deleted');
+        fetchCoupons();
+      } else {
+        toast.error(res.message || 'Failed to delete');
+      }
+    } catch {
+      toast.error('Failed to delete coupon');
+    } finally {
+      setDeletingCouponId(null);
+    }
+  };
 
   const handleCancelBooking = (bookingId: string) => {
     setCancelBookingId(bookingId);
@@ -303,6 +405,16 @@ const AdminDashboard: React.FC = () => {
 
     setBlockingInProgress(true);
     try {
+      const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+      const slotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
+      const slotsTotal = slotPrices.reduce((a, b) => a + b, 0);
+      const ballAmt = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
+      const grandTotal = slotsTotal + ballAmt;
+      const defaultAdvance = Math.round(grandTotal * 0.3);
+      const customPaid = walkinPhone && walkinPaymentType === 'advance'
+        ? (customAdvanceAmount !== '' ? Number(customAdvanceAmount) : defaultAdvance)
+        : undefined;
+
       const res = await blockSlotAdmin(
         selectedTurf,
         selectedDate,
@@ -310,7 +422,9 @@ const AdminDashboard: React.FC = () => {
         walkinName ? `Walk-in: ${walkinName}` : 'Admin Block',
         walkinPhone,
         walkinName,
-        walkinPhone ? walkinBallType : 'none'
+        walkinPhone ? walkinBallType : 'none',
+        walkinPhone ? walkinPaymentType : undefined,
+        customPaid
       );
 
       if (res.success) {
@@ -365,6 +479,7 @@ const AdminDashboard: React.FC = () => {
     { key: 'bookings', label: 'Bookings', icon: <MdBookOnline size={18} /> },
     { key: 'slots', label: 'Slots', icon: <MdBlock size={18} /> },
     { key: 'pricing', label: 'Pricing', icon: <MdAttachMoney size={18} /> },
+    { key: 'coupons', label: 'Coupons', icon: <MdLocalOffer size={18} /> },
   ];
 
   /* ─── RENDER ─── */
@@ -906,7 +1021,7 @@ const AdminDashboard: React.FC = () => {
                               <p className="text-[9px] font-black text-surface-500 uppercase tracking-widest leading-none">Total</p>
                               <p className="text-sm font-black text-white">₹{b.totalAmountGrouped || b.totalAmount}</p>
                             </div>
-                            {!isBlocked && b.paymentType === 'advance' && (
+                            {!isBlocked && b.status === 'confirmed' && (b.paidAmountGrouped || b.paidAmount) < (b.totalAmountGrouped || b.totalAmount) && (
                               <>
                                 <div className="text-right">
                                   <p className="text-[9px] font-black text-surface-500 uppercase tracking-widest leading-none">Paid</p>
@@ -923,8 +1038,8 @@ const AdminDashboard: React.FC = () => {
                             {b.status === 'confirmed' && (
                               <button onClick={() => handleCancelBooking(b._id)} className="text-[10px] text-red-400 bg-red-400/10 border border-red-400/20 px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter hover:bg-red-400/20 transition-all">Cancel</button>
                             )}
-                            {b.paymentType === 'advance' && b.status === 'confirmed' && (
-                              <button onClick={() => handleCollectPayment(b._id)} className="text-[10px] text-green-400 bg-green-400/10 border border-green-400/20 px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter hover:bg-green-400/20 transition-all">Collect Cash</button>
+                            {b.status === 'confirmed' && (b.paidAmountGrouped || b.paidAmount) < (b.totalAmountGrouped || b.totalAmount) && (
+                              <button onClick={() => handleCollectPayment(b._id)} className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter hover:bg-green-400/20 transition-all">Collect Cash</button>
                             )}
                             {isBlocked && (
                               <button onClick={() => handleUnblockSlot(b.startHour, b.date, b.turfId)} className="text-[10px] text-primary-400 bg-primary-400/10 border border-primary-400/20 px-3 py-1.5 rounded-lg font-black uppercase tracking-tighter hover:bg-primary-400/20 transition-all">Unblock</button>
@@ -988,7 +1103,7 @@ const AdminDashboard: React.FC = () => {
                             <td className="py-3 px-4">
                               <div className="space-y-1">
                                 <p className="text-sm font-black text-white leading-none">₹{b.totalAmountGrouped || b.totalAmount}</p>
-                                {!isBlocked && b.paymentType === 'advance' && (
+                                {!isBlocked && b.status === 'confirmed' && (b.paidAmountGrouped || b.paidAmount) < (b.totalAmountGrouped || b.totalAmount) && (
                                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 opacity-80 mt-1">
                                     <p className="text-[10px] text-green-500 font-black uppercase tracking-tighter">Paid: ₹{b.paidAmountGrouped || b.paidAmount}</p>
                                     <p className="text-[10px] text-amber-500 font-black uppercase tracking-tighter">Due: ₹{(b.totalAmountGrouped || b.totalAmount) - (b.paidAmountGrouped || b.paidAmount)}</p>
@@ -1010,7 +1125,7 @@ const AdminDashboard: React.FC = () => {
                                 {b.status === 'confirmed' && (
                                   <button onClick={() => handleCancelBooking(b._id)} className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-lg font-black uppercase hover:bg-red-500/20 transition-colors">Cancel</button>
                                 )}
-                                {b.paymentType === 'advance' && b.status === 'confirmed' && (
+                                {b.status === 'confirmed' && (b.paidAmountGrouped || b.paidAmount) < (b.totalAmountGrouped || b.totalAmount) && (
                                   <button onClick={() => handleCollectPayment(b._id)} className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-lg font-black uppercase hover:bg-green-500/20 transition-colors">Collect Cash</button>
                                 )}
                                 {isBlocked && (
@@ -1092,16 +1207,22 @@ const AdminDashboard: React.FC = () => {
                         : slot.status === 'booked' ? 'bg-primary-500/10 border-primary-500/20 opacity-60 cursor-not-allowed'
                         : 'bg-white/5 border-white/5 hover:border-primary-500/30'
                       }`}>
-                      <span className="text-[10px] sm:text-xs font-black text-surface-400 mb-1 sm:mb-2">{formatHour(slot.hour)}</span>
-                      <span className={`text-[9px] sm:text-[10px] font-bold uppercase mb-2 sm:mb-3 ${slot.status === 'available' ? 'text-green-400' : 'text-surface-500'}`}>{slot.status}</span>
+                      <span className="text-[10px] sm:text-xs font-black text-surface-400 mb-1">{formatHour(slot.hour)}</span>
+                      <span className={`text-[9px] sm:text-[10px] font-bold uppercase ${
+                        slot.status === 'available' ? 'text-green-400' : 'text-surface-500'
+                      }`}>{slot.status}</span>
+                      {/* Price — only shown for available slots */}
+                      {slot.status === 'available' && (
+                        <span className="text-[10px] sm:text-[11px] font-black text-primary-400 mt-1">₹{slot.price}</span>
+                      )}
                       {slot.status === 'blocked' && (
-                        <button onClick={(e) => { e.stopPropagation(); handleUnblockSlot(slot.hour); }} className="text-[9px] sm:text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 sm:py-1 rounded hover:bg-green-500/30 transition z-10 relative">Unblock</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleUnblockSlot(slot.hour); }} className="text-[9px] sm:text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 sm:py-1 rounded hover:bg-green-500/30 transition z-10 relative mt-1">Unblock</button>
                       )}
                       {slot.status === 'available' && !selectedAdminSlots.includes(slot.hour) && (
-                        <span className="text-[9px] sm:text-[10px] bg-white/5 text-surface-400 px-2 py-0.5 sm:py-1 rounded transition">Select</span>
+                        <span className="text-[9px] sm:text-[10px] bg-white/5 text-surface-400 px-2 py-0.5 sm:py-1 rounded transition mt-1">Select</span>
                       )}
                       {selectedAdminSlots.includes(slot.hour) && (
-                        <span className="text-[9px] sm:text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 sm:py-1 rounded font-bold">Selected</span>
+                        <span className="text-[9px] sm:text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 sm:py-1 rounded font-bold mt-1">Selected</span>
                       )}
                     </div>
                   ));
@@ -1129,17 +1250,29 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {/* Selection Action Bar for Admin */}
-        {selectedAdminSlots.length > 0 && activeTab === 'slots' && (
-          <div className="fixed bottom-6 inset-x-0 mx-auto w-[90%] max-w-2xl z-50 animate-slide-up">
-            <div className="bg-surface-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-white font-bold">{selectedAdminSlots.length} {selectedAdminSlots.length === 1 ? 'Slot' : 'Slots'} Selected</span>
-              <div className="flex gap-3">
-                <button onClick={() => setSelectedAdminSlots([])} className="text-surface-400 hover:text-white px-3 py-2 text-sm transition font-medium">Clear</button>
-                <button onClick={() => { setWalkinName(''); setWalkinPhone(''); setShowBlockModal(true); }} className="btn-primary py-2 px-6 shadow-xl text-sm whitespace-nowrap">Block / Walk-in</button>
+        {selectedAdminSlots.length > 0 && activeTab === 'slots' && (() => {
+          const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+          const selectedSlotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
+          const slotsTotal = selectedSlotPrices.reduce((a, b) => a + b, 0);
+          const ballTotal = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
+          const grandTotal = slotsTotal + ballTotal;
+          return (
+            <div className="fixed bottom-6 inset-x-0 mx-auto w-[90%] max-w-2xl z-50 animate-slide-up">
+              <div className="bg-surface-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <span className="text-white font-bold">{selectedAdminSlots.length} {selectedAdminSlots.length === 1 ? 'Slot' : 'Slots'} Selected</span>
+                  {grandTotal > 0 && (
+                    <span className="text-primary-400 font-black text-sm ml-3">₹{grandTotal}</span>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setSelectedAdminSlots([])} className="text-surface-400 hover:text-white px-3 py-2 text-sm transition font-medium">Clear</button>
+                  <button onClick={() => { setWalkinName(''); setWalkinPhone(''); setWalkinPaymentType('full'); setWalkinBallType('none'); setCustomAdvanceAmount(''); setShowBlockModal(true); }} className="btn-primary py-2 px-6 shadow-xl text-sm whitespace-nowrap">Block / Walk-in</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═══ PRICING TAB ═══ */}
         {activeTab === 'pricing' && (
@@ -1192,13 +1325,299 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* ═══ COUPONS TAB ═══ */}
+        {activeTab === 'coupons' && (
+          <div className="animate-fade-in space-y-4 sm:space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-display font-black text-white">Coupon Codes</h2>
+                <p className="text-[11px] text-surface-500 mt-0.5">Create and manage discount coupons for users</p>
+              </div>
+              <button
+                onClick={() => setShowAddCoupon(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-all shadow-lg shadow-primary-500/20 active:scale-95"
+              >
+                <MdAdd size={18} /> Add Coupon
+              </button>
+            </div>
+
+            {loadingCoupons ? (
+              <div className="flex justify-center py-12"><LoadingSpinner text="Loading coupons..." /></div>
+            ) : coupons.length === 0 ? (
+              <div className="glass-card p-12 text-center">
+                <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                  <MdLocalOffer className="text-amber-400" size={32} />
+                </div>
+                <p className="text-white font-bold text-base mb-1">No Coupons Yet</p>
+                <p className="text-surface-500 text-sm mb-6">Create your first coupon to offer discounts to users.</p>
+                <button onClick={() => setShowAddCoupon(true)} className="btn-primary px-8">Create Coupon</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                {coupons.map((coupon) => (
+                  <div
+                    key={coupon._id}
+                    className={`relative glass-card p-4 sm:p-5 border transition-all duration-300 ${coupon.isActive ? 'border-white/10' : 'border-white/5 opacity-60'}`}
+                  >
+                    {/* Status badge */}
+                    <div className={`absolute top-3 right-3 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${coupon.isActive ? 'bg-green-500/15 text-green-400 border-green-500/30' : 'bg-surface-700/50 text-surface-500 border-white/10'}`}>
+                      {coupon.isActive ? 'Active' : 'Inactive'}
+                    </div>
+
+                    {/* Code */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-9 h-9 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20 flex-shrink-0">
+                        <MdLocalOffer className="text-amber-400" size={18} />
+                      </div>
+                      <div>
+                        <p className="text-white font-black text-base tracking-widest">{coupon.code}</p>
+                        <p className="text-[10px] text-surface-500 font-bold uppercase">
+                          {coupon.applicableTo === 'full' ? 'Full Payment Only' : 'All Payments'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Discount value */}
+                    <div className="flex items-baseline gap-1 mb-3">
+                      <span className="text-3xl font-black text-amber-400">
+                        {coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `₹${coupon.discountValue}`}
+                      </span>
+                      <span className="text-surface-400 text-xs font-bold uppercase tracking-wider">off</span>
+                    </div>
+
+                    {/* Details row */}
+                    <div className="flex flex-wrap gap-2 mb-4 text-[10px] font-bold">
+                      {coupon.minBookingAmount > 0 && (
+                        <span className="bg-white/5 text-surface-400 px-2 py-0.5 rounded-lg border border-white/5">Min ₹{coupon.minBookingAmount}</span>
+                      )}
+                      <span className="bg-white/5 text-surface-400 px-2 py-0.5 rounded-lg border border-white/5">
+                        Used: {coupon.usedCount}{coupon.maxUses > 0 ? `/${coupon.maxUses}` : ''}
+                      </span>
+                      {coupon.expiresAt && (
+                        <span className={`px-2 py-0.5 rounded-lg border ${new Date(coupon.expiresAt) < new Date() ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-white/5 text-surface-400 border-white/5'}`}>
+                          Exp: {new Date(coupon.expiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 border-t border-white/5 pt-3">
+                      <button
+                        onClick={() => handleToggleCoupon(coupon)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border ${coupon.isActive ? 'bg-surface-700/50 border-white/10 text-surface-400 hover:bg-surface-600/50' : 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20'}`}
+                      >
+                        {coupon.isActive ? <MdToggleOff size={16} /> : <MdToggleOn size={16} />}
+                        {coupon.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon._id)}
+                        disabled={deletingCouponId === coupon._id}
+                        className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
+                      >
+                        {deletingCouponId === coupon._id ? (
+                          <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                        ) : (
+                          <MdDelete size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add Coupon Modal */}
+            <Modal isOpen={showAddCoupon} onClose={() => !savingCoupon && setShowAddCoupon(false)} title="Add New Coupon">
+              <div className="space-y-4">
+                {/* Code */}
+                <div>
+                  <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Coupon Code <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={couponForm.code}
+                    onChange={(e) => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/\s/g, '') }))}
+                    placeholder="e.g. SAVE20"
+                    className="input-field uppercase tracking-widest font-black"
+                  />
+                </div>
+
+                {/* Discount Type + Value */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Type <span className="text-red-400">*</span></label>
+                    <select
+                      value={couponForm.discountType}
+                      onChange={(e) => setCouponForm(f => ({ ...f, discountType: e.target.value as 'percentage' | 'flat' }))}
+                      className="input-field"
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="flat">Flat (₹)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">
+                      Value <span className="text-red-400">*</span>
+                      <span className="text-surface-600 normal-case ml-1">({couponForm.discountType === 'percentage' ? '1–100%' : '₹'})</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={couponForm.discountValue}
+                      onChange={(e) => setCouponForm(f => ({ ...f, discountValue: e.target.value }))}
+                      placeholder={couponForm.discountType === 'percentage' ? '10' : '100'}
+                      min="1"
+                      max={couponForm.discountType === 'percentage' ? '100' : undefined}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+
+                {/* Applicable To */}
+                <div>
+                  <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Applicable On</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { val: 'both', label: 'Both Payments', sub: 'Full & Advance' },
+                      { val: 'full', label: 'Full Payment Only', sub: 'Not on advance' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setCouponForm(f => ({ ...f, applicableTo: opt.val }))}
+                        className={`flex flex-col items-center p-2.5 rounded-xl border text-center transition-all ${couponForm.applicableTo === opt.val ? 'bg-primary-500/20 border-primary-500/50 ring-1 ring-primary-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                      >
+                        <span className="text-[11px] font-black text-white">{opt.label}</span>
+                        <span className="text-[9px] text-surface-500 mt-0.5">{opt.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Min Amount + Max Uses */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Min Booking ₹ <span className="text-surface-600 normal-case">(optional)</span></label>
+                    <input
+                      type="number"
+                      value={couponForm.minBookingAmount}
+                      onChange={(e) => setCouponForm(f => ({ ...f, minBookingAmount: e.target.value }))}
+                      placeholder="0 = no min"
+                      min="0"
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Max Uses <span className="text-surface-600 normal-case">(0 = ∞)</span></label>
+                    <input
+                      type="number"
+                      value={couponForm.maxUses}
+                      onChange={(e) => setCouponForm(f => ({ ...f, maxUses: e.target.value }))}
+                      placeholder="0"
+                      min="0"
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+
+                {/* Expiry Date */}
+                <div>
+                  <label className="block text-xs font-black text-surface-400 uppercase tracking-widest mb-1.5">Expiry Date <span className="text-surface-600 normal-case">(optional)</span></label>
+                  <input
+                    type="date"
+                    value={couponForm.expiresAt}
+                    onChange={(e) => setCouponForm(f => ({ ...f, expiresAt: e.target.value }))}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="input-field"
+                  />
+                </div>
+
+                {/* Active toggle */}
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                  <div>
+                    <p className="text-sm font-bold text-white">Active</p>
+                    <p className="text-[10px] text-surface-500">Users can apply this coupon immediately</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCouponForm(f => ({ ...f, isActive: !f.isActive }))}
+                    className={`w-12 h-6 rounded-full border-2 transition-all relative flex-shrink-0 ${couponForm.isActive ? 'bg-primary-500 border-primary-500' : 'bg-surface-700 border-surface-600'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${couponForm.isActive ? 'left-6' : 'left-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => setShowAddCoupon(false)} disabled={savingCoupon} className="btn-secondary flex-1">Cancel</button>
+                  <button
+                    onClick={handleCreateCoupon}
+                    disabled={savingCoupon}
+                    className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
+                    {savingCoupon ? (
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating...</>
+                    ) : 'Create Coupon'}
+                  </button>
+                </div>
+              </div>
+            </Modal>
+          </div>
+        )}
+
         {/* Walk-in Booking Modal */}
         <Modal isOpen={showBlockModal} onClose={() => !blockingInProgress && setShowBlockModal(false)} title="Block Slot / Walk-in Booking">
           <div className="space-y-4">
-            <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
-              <p className="text-xs text-surface-400 font-bold uppercase tracking-widest">Selected Slot</p>
-              <p className="text-white font-black">Arena {selectedTurf === 'A' ? '1' : '2'} · {formatDate(selectedDate)} · {selectedAdminSlots.map(h => formatHour(h)).join(', ')}</p>
-            </div>
+            {/* Selected Slots + Price Summary */}
+            {(() => {
+              const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+              const slotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
+              const slotsTotal = slotPrices.reduce((a, b) => a + b, 0);
+              const ballAmt = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
+              const grandTotal = slotsTotal + ballAmt;
+              const defaultAdvance = Math.round(grandTotal * 0.3);
+              const payableNow = walkinPaymentType === 'advance'
+                ? (customAdvanceAmount !== '' ? Number(customAdvanceAmount) : defaultAdvance)
+                : grandTotal;
+              const remainingDue = grandTotal - payableNow;
+
+              return (
+                <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-surface-400 font-bold uppercase tracking-widest">Selected Slot</p>
+                      <p className="text-white font-black text-sm">Arena {selectedTurf === 'A' ? '1' : '2'} · {formatDate(selectedDate)}</p>
+                      <p className="text-primary-400 text-xs font-bold mt-0.5">{selectedAdminSlots.map(h => formatHour(h)).join(', ')}</p>
+                    </div>
+                    {grandTotal > 0 && walkinPhone && (
+                      <div className="text-right">
+                        <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest">
+                          {walkinPaymentType === 'advance' ? 'Advance' : 'Total'}
+                        </p>
+                        <p className="text-white font-black text-xl">₹{payableNow}</p>
+                        {walkinPaymentType === 'advance' && (
+                          <p className="text-[10px] text-amber-400 font-bold">Due: ₹{remainingDue}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {/* Per-slot price breakdown */}
+                  {slotPrices.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/5">
+                      {selectedAdminSlots.map((h, idx) => (
+                        <span key={h} className="text-[10px] bg-white/5 text-surface-300 px-2 py-0.5 rounded-lg border border-white/5 font-bold">
+                          {formatHour(h)} · ₹{slotPrices[idx]}
+                        </span>
+                      ))}
+                      {ballAmt > 0 && (
+                        <span className="text-[10px] bg-accent-500/10 text-accent-300 px-2 py-0.5 rounded-lg border border-accent-500/20 font-bold">
+                          Ball · ₹{ballAmt}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Info banner */}
             <div className={`p-3 rounded-xl border text-xs font-medium transition-all duration-300 ${walkinPhone ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
@@ -1258,6 +1677,77 @@ const AdminDashboard: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Payment Type — only for walk-in bookings */}
+              {walkinPhone && (
+                <div className="pt-2 animate-fade-in space-y-3">
+                  <div>
+                    <label className="block text-xs font-black text-surface-500 uppercase tracking-widest mb-2">
+                      Payment Option
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWalkinPaymentType('full')}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
+                          walkinPaymentType === 'full'
+                            ? 'bg-primary-500/20 border-primary-500 ring-1 ring-primary-500/30'
+                            : 'bg-white/5 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-[10px] font-black text-white uppercase mb-0.5">Full Payment</span>
+                        <span className="text-sm font-black text-white">
+                          ₹{(() => {
+                            const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                            const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
+                            return st + (BALL_P[walkinBallType] || 0);
+                          })()}
+                        </span>
+                        <span className="text-[8px] text-surface-400 uppercase tracking-tighter mt-0.5">Pay 100% cash now</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWalkinPaymentType('advance')}
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
+                          walkinPaymentType === 'advance'
+                            ? 'bg-accent-500/20 border-accent-500 ring-1 ring-accent-500/30'
+                            : 'bg-white/5 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-[10px] font-black text-white uppercase mb-0.5">Advance</span>
+                        <span className="text-sm font-black text-white">
+                          ₹{(() => {
+                            const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                            const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
+                            const total = st + (BALL_P[walkinBallType] || 0);
+                            return customAdvanceAmount !== '' ? customAdvanceAmount : Math.round(total * 0.3);
+                          })()}
+                        </span>
+                        <span className="text-[8px] text-surface-400 uppercase tracking-tighter mt-0.5">Pay rest at turf</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {walkinPaymentType === 'advance' && (
+                    <div className="pt-1 animate-fade-in">
+                      <label className="block text-xs font-black text-surface-500 uppercase tracking-widest mb-1.5">
+                        Advance Amount Paid (₹)
+                      </label>
+                      <input
+                        type="number"
+                        className="input-field"
+                        placeholder={`Default: ₹${(() => {
+                          const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                          const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
+                          return Math.round((st + (BALL_P[walkinBallType] || 0)) * 0.3);
+                        })()}`}
+                        value={customAdvanceAmount}
+                        onChange={(e) => setCustomAdvanceAmount(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

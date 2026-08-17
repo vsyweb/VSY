@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import MobileBottomNav from '../components/MobileBottomNav';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
 import { getUserBookings, cancelBooking } from '../services/api';
@@ -388,11 +389,22 @@ const MyBookingsPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-center animate-pulse">
-            <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1">Cancellation Policy</p>
-            <p className="text-xs font-bold text-red-300">
-               ⚠️ IMPORTANT: Payments are strictly <span className="underline decoration-red-500 underline-offset-2">NON-REFUNDABLE</span> for any cancellations as per our policy.
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 text-center mb-1">Cancellation & Refund Policy</p>
+            <p className="text-xs font-bold text-amber-200 leading-relaxed">
+              If you want to cancel your booked slot, you must contact the admin at least <span className="text-amber-400 font-extrabold">20 hours</span> before your booked slot.
             </p>
+            <p className="text-xs font-extrabold text-white bg-white/5 py-2 px-3 rounded-lg border border-white/10 flex items-center justify-center gap-2">
+              📞 Admin Contact: <a href="tel:63052777053" className="text-primary-400 hover:text-primary-300 underline font-black">63052777053</a>
+            </p>
+            <div className="text-xs font-semibold text-red-300 bg-red-500/10 p-3 rounded-xl border border-red-500/20 space-y-2">
+              <p>
+                <strong className="text-red-400">Important:</strong> Cancellation and refund requests will be accepted only <span className="underline decoration-red-500 underline-offset-2 font-extrabold text-white">before 20 hours</span> of the booked slot. Requests made within 20 hours of the booking time will not be eligible for cancellation or refund.
+              </p>
+              <p className="text-[11px] bg-red-950/30 p-2 rounded border border-red-900/30 text-red-200">
+                ⚠️ Without contacting the admin, if you cancel the slot, you will not get any refund.
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-3">
@@ -411,6 +423,7 @@ const MyBookingsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+      <MobileBottomNav />
     </div>
   );
 };

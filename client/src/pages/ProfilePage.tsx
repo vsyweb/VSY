@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import MobileBottomNav from '../components/MobileBottomNav';
 import { MdPerson, MdPhone, MdEmail, MdLogout, MdHistory } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
@@ -169,6 +170,7 @@ const ProfilePage = () => {
           </div>
         </div>
       </main>
+      <MobileBottomNav />
     </div>
   );
 };

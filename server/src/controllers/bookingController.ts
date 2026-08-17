@@ -46,7 +46,7 @@ export const createBooking = async (req: Request, res: Response): Promise<void> 
     }
 
     const BALL_PRICES: Record<string, number> = {
-      light_tennis: 80,
+      light_tennis: 0,
       hard_tennis: 100,
       old_ball: 0,
       none: 0

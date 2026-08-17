@@ -203,7 +203,7 @@ const WorkerDashboard: React.FC = () => {
 
     setBlockingInProgress(true);
     try {
-      const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+      const BALL_PRICES: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
       const slotsTotal = selectedAdminSlots.reduce((a, h) => a + (slots.find((s) => s.hour === h)?.price ?? 0), 0);
       const grandTotal = slotsTotal + (BALL_PRICES[walkinBallType] || 0);
       const defaultAdvance = Math.round(grandTotal * 0.3);
@@ -969,7 +969,7 @@ const WorkerDashboard: React.FC = () => {
 
         {/* Selection Bar for Walk-in Booking */}
         {selectedAdminSlots.length > 0 && activeTab === 'slots' && (() => {
-          const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+          const BALL_PRICES: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
           const selectedSlotPrices = selectedAdminSlots.map((h) => slots.find((s) => s.hour === h)?.price ?? 0);
           const slotsTotal = selectedSlotPrices.reduce((a, b) => a + b, 0);
           const ballTotal = walkinPhone ? BALL_PRICES[walkinBallType] || 0 : 0;
@@ -1106,7 +1106,7 @@ const WorkerDashboard: React.FC = () => {
                       className="w-full bg-surface-900 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500/50"
                     >
                       <option value="none">No Ball Hire (₹0)</option>
-                      <option value="light_tennis">Light Tennis Ball (₹80)</option>
+                      <option value="light_tennis">Light Tennis Ball (FREE)</option>
                       <option value="hard_tennis">Hard Tennis Ball (₹100)</option>
                     </select>
                   </div>
@@ -1125,7 +1125,7 @@ const WorkerDashboard: React.FC = () => {
                 </div>
 
                 {walkinPaymentType === 'advance' && (() => {
-                  const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                  const BALL_PRICES: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
                   const slotsTotal = selectedAdminSlots.reduce((a, h) => a + (slots.find((s) => s.hour === h)?.price ?? 0), 0);
                   const grandTotal = slotsTotal + (BALL_PRICES[walkinBallType] || 0);
                   const defaultAdvance = Math.round(grandTotal * 0.3);

@@ -295,7 +295,7 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
       }
 
       const pricingRules = await PricingRule.find({ isActive: true }).lean();
-      const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+      const BALL_PRICES: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
       
       let totalBookingAmount = BALL_PRICES[ballType] || 0;
       for (const hour of numericStartHours) {

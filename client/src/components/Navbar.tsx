@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdClose, MdDashboard, MdHistory, MdLogout, MdMenu, MdLocationOn } from 'react-icons/md';
+import { MdClose, MdDashboard, MdHistory, MdLogout, MdMenu, MdLocationOn, MdSportsBaseball, MdCalendarToday } from 'react-icons/md';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,7 +44,29 @@ const Navbar: React.FC = () => {
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <MdDashboard /> Book Slots
+                    <MdDashboard /> Home
+                  </div>
+                </Link>
+                <Link
+                  to="/book-slots"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${isActive('/book-slots')
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-surface-400 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <MdCalendarToday /> Book Slots
+                  </div>
+                </Link>
+                <Link
+                  to="/activities"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${isActive('/activities')
+                    ? 'bg-primary-500/20 text-primary-400'
+                    : 'text-surface-400 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <MdSportsBaseball /> Activities
                   </div>
                 </Link>
                 <Link
@@ -120,7 +142,31 @@ const Navbar: React.FC = () => {
                       }`}
                   >
                     <div className="flex items-center gap-2">
-                      <MdDashboard /> Book Slots
+                      <MdDashboard /> Home
+                    </div>
+                  </Link>
+                  <Link
+                    to="/book-slots"
+                    onClick={() => setMenuOpen(false)}
+                    className={`px-4 py-3 rounded-lg text-sm font-medium ${isActive('/book-slots')
+                      ? 'bg-primary-500/20 text-primary-400'
+                      : 'text-surface-400 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <MdCalendarToday /> Book Slots
+                    </div>
+                  </Link>
+                  <Link
+                    to="/activities"
+                    onClick={() => setMenuOpen(false)}
+                    className={`px-4 py-3 rounded-lg text-sm font-medium ${isActive('/activities')
+                      ? 'bg-primary-500/20 text-primary-400'
+                      : 'text-surface-400 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <MdSportsBaseball /> Activities
                     </div>
                   </Link>
                   <Link

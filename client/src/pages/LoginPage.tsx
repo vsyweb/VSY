@@ -598,7 +598,7 @@ const LoginPage: React.FC = () => {
                           <a href="tel:+919502154297" className="hover:text-primary-400 transition-colors">+91 95021 54297</a>
                         </p>
                         <p className="text-xs sm:text-sm text-surface-400">
-                          <a href="tel:+916305277053" className="hover:text-primary-400 transition-colors">+91 6305-277053</a>
+                          <a href="tel:+9163052777053" className="hover:text-primary-400 transition-colors">+91 63052 777053</a>
                         </p>
                       </div>
                     </div>

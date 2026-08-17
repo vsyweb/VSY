@@ -405,7 +405,7 @@ const AdminDashboard: React.FC = () => {
 
     setBlockingInProgress(true);
     try {
-      const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+      const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
       const slotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
       const slotsTotal = slotPrices.reduce((a, b) => a + b, 0);
       const ballAmt = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
@@ -1251,7 +1251,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Selection Action Bar for Admin */}
         {selectedAdminSlots.length > 0 && activeTab === 'slots' && (() => {
-          const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+          const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
           const selectedSlotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
           const slotsTotal = selectedSlotPrices.reduce((a, b) => a + b, 0);
           const ballTotal = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
@@ -1569,7 +1569,7 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             {/* Selected Slots + Price Summary */}
             {(() => {
-              const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+              const BALL_PRICES_ADMIN: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
               const slotPrices = selectedAdminSlots.map(h => slots.find(s => s.hour === h)?.price ?? 0);
               const slotsTotal = slotPrices.reduce((a, b) => a + b, 0);
               const ballAmt = walkinPhone ? (BALL_PRICES_ADMIN[walkinBallType] || 0) : 0;
@@ -1659,7 +1659,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'none', label: 'None', price: 0 },
-                      { id: 'light_tennis', label: 'Light', price: 80 },
+                      { id: 'light_tennis', label: 'Light', price: 0 },
                       { id: 'hard_tennis', label: 'Hard', price: 100 },
                     ].map((ball) => (
                       <button
@@ -1700,7 +1700,7 @@ const AdminDashboard: React.FC = () => {
                         <span className="text-[10px] font-black text-white uppercase mb-0.5">Full Payment</span>
                         <span className="text-sm font-black text-white">
                           ₹{(() => {
-                            const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                            const BALL_P: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
                             const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
                             return st + (BALL_P[walkinBallType] || 0);
                           })()}
@@ -1719,7 +1719,7 @@ const AdminDashboard: React.FC = () => {
                         <span className="text-[10px] font-black text-white uppercase mb-0.5">Advance</span>
                         <span className="text-sm font-black text-white">
                           ₹{(() => {
-                            const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                            const BALL_P: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
                             const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
                             const total = st + (BALL_P[walkinBallType] || 0);
                             return customAdvanceAmount !== '' ? customAdvanceAmount : Math.round(total * 0.3);
@@ -1739,7 +1739,7 @@ const AdminDashboard: React.FC = () => {
                         type="number"
                         className="input-field"
                         placeholder={`Default: ₹${(() => {
-                          const BALL_P: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
+                          const BALL_P: Record<string, number> = { light_tennis: 0, hard_tennis: 100, none: 0 };
                           const st = selectedAdminSlots.reduce((a, h) => a + (slots.find(s => s.hour === h)?.price ?? 0), 0);
                           return Math.round((st + (BALL_P[walkinBallType] || 0)) * 0.3);
                         })()}`}

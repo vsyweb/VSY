@@ -274,7 +274,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   if (selectedSlots.length === 0) return null;
 
   const BALL_PRICES = {
-    light_tennis: 80,
+    light_tennis: 0,
     hard_tennis: 100,
     old_ball: 0,
     none: 0,
@@ -362,7 +362,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'none', label: 'None', price: 0, desc: 'N/A' },
-                  { id: 'light_tennis', label: 'Light', price: 80, desc: 'Tennis' },
+                  { id: 'light_tennis', label: 'Light', price: 0, desc: '1 Free Ball' },
                   { id: 'hard_tennis', label: 'Hard', price: 100, desc: 'Tennis' },
                 ].map((ball) => (
                   <button
@@ -375,12 +375,20 @@ const BookingModal: React.FC<BookingModalProps> = ({
                     }`}
                   >
                     <span className="text-[10px] sm:text-[11px] font-black text-white uppercase text-center mb-0.5 leading-tight">{ball.label}</span>
-                    <span className="text-xs sm:text-sm font-black text-white">{ball.id === 'none' ? '—' : (ball.price > 0 ? `₹${ball.price}` : 'Free')}</span>
+                    <span className="text-xs sm:text-sm font-black text-white">{ball.id === 'none' ? '—' : (ball.id === 'light_tennis' ? 'FREE' : `₹${ball.price}`)}</span>
                     <span className="text-[8px] sm:text-[9px] text-surface-400 uppercase tracking-tighter mt-0.5 text-center truncate w-full">{ball.desc}</span>
                   </button>
                 ))}
               </div>
 
+              {ballType === 'light_tennis' && (
+                <div className="p-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-300 text-[10px] sm:text-xs font-semibold leading-relaxed flex items-start gap-2">
+                  <span className="text-base">ℹ️</span>
+                  <span>
+                    <strong className="text-green-400">1 Light Tennis ball is FREE</strong> with your booking! For extra balls, please pay <strong className="text-white">₹80 per ball</strong> at the arena.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Coupon Code Section */}

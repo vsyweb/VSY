@@ -6,6 +6,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import ProfilePage from './pages/ProfilePage';
+import ActivitiesPage from './pages/ActivitiesPage';
+import BookSlotsPage from './pages/BookSlotsPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import WorkerDashboard from './pages/WorkerDashboard';
@@ -153,6 +155,22 @@ const App: React.FC = () => {
             element={
               <UserRoute>
                 <ProfilePage />
+              </UserRoute>
+            }
+          />
+          <Route
+            path="/activities"
+            element={
+              <UserRoute>
+                <ActivitiesPage />
+              </UserRoute>
+            }
+          />
+          <Route
+            path="/book-slots"
+            element={
+              <UserRoute>
+                <BookSlotsPage />
               </UserRoute>
             }
           />

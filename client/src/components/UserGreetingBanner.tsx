@@ -21,7 +21,7 @@ const UserGreetingBanner: React.FC = () => {
         aria-hidden
         className="absolute right-2 top-1/2 -translate-y-1/2 text-[72px] sm:text-[96px] font-black text-white/[0.035] select-none pointer-events-none leading-none tracking-tighter"
       >
-        VODHA
+        VSY
       </div>
 
       <div className="relative z-10 p-4 sm:p-5">
@@ -42,7 +42,7 @@ const UserGreetingBanner: React.FC = () => {
 
         {/* Subtitle */}
         <p className="text-xs sm:text-sm text-surface-400 leading-relaxed mb-4">
-          Welcome back to Safilguda's premier athletic arena. Your next victory starts here.
+          Welcome back to Nadergul's premier athletic arena. Your next victory starts here.
         </p>
 
         {/* Full-width CTA Button */}

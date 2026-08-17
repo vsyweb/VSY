@@ -252,7 +252,7 @@ const DashboardPage: React.FC = () => {
               </p>
               <div className="flex gap-2 mt-3">
                 <a
-                  href="https://wa.me/919999999999"
+                  href="https://wa.me/916305277053"
                   target="_blank"
                   rel="noopener noreferrer"
                   id="whatsapp-support-btn"
@@ -261,7 +261,7 @@ const DashboardPage: React.FC = () => {
                   <MdWhatsapp size={15} /> WhatsApp
                 </a>
                 <a
-                  href="tel:+919999999999"
+                  href="tel:+916305277053"
                   id="call-support-btn"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-wider transition-all"
                 >

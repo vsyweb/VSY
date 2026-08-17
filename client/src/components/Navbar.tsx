@@ -21,7 +21,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to={role === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-3 group">
+          <Link to={role === 'admin' ? '/admin' : role === 'worker' ? '/worker' : '/dashboard'} className="flex items-center gap-3 group">
             <div className="h-12 w-16 rounded-lg overflow-hidden bg-white/5 p-1
               group-hover:shadow-lg group-hover:shadow-primary-500/25 transition-all duration-300">
               <img src="/images/logo.png" alt="VSY Logo" className="w-full h-full object-contain scale-110" />

@@ -5,7 +5,7 @@ import { JwtPayload } from '../types';
 /**
  * Generates a JWT token for a user or admin.
  */
-export const generateToken = (id: string, role: 'user' | 'admin'): string => {
+export const generateToken = (id: string, role: 'user' | 'admin' | 'worker'): string => {
   const payload: JwtPayload = { id, role };
   return jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,

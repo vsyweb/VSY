@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SlotInfo, TurfId } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
-import { lockSlot, createBooking, verifyPayment, unlockSlot } from '../services/api';
+import { lockSlot, createBooking, verifyPayment, unlockSlot, validateCoupon, getPaymentStatus } from '../services/api';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { MdSportsCricket, MdAccessTime, MdPayment, MdCheckCircle } from 'react-icons/md';
+import { MdSportsCricket, MdAccessTime, MdPayment, MdCheckCircle, MdLocalOffer, MdClose } from 'react-icons/md';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -33,14 +33,88 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const [paymentType, setPaymentType] = useState<'full' | 'advance'>('full');
   const [ballType, setBallType] = useState<'light_tennis' | 'hard_tennis' | 'old_ball' | 'none'>('none');
   const [demoOrder, setDemoOrder] = useState<any>(null);
+  const [processingMessage, setProcessingMessage] = useState('Checking transaction status with the bank');
+  const pollingRef = useRef<number | null>(null);
+
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; applicableTo?: 'full' | 'both' } | null>(null);
 
   const resetAndClose = () => {
+    if (pollingRef.current) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
     setStep('confirm');
     setCountdown(300);
     setDemoOrder(null);
     setPaymentType('full');
     setBallType('none');
+    setProcessingMessage('Checking transaction status with the bank');
+    setCouponInput('');
+    setAppliedCoupon(null);
     onClose();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        window.clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (appliedCoupon && appliedCoupon.applicableTo === 'full' && paymentType === 'advance') {
+      toast.error(`Coupon '${appliedCoupon.code}' is only applicable on full payment.`);
+      setAppliedCoupon(null);
+      setCouponInput('');
+    }
+  }, [paymentType, appliedCoupon]);
+
+  const startPaymentStatusPolling = (orderId: string) => {
+    if (pollingRef.current) {
+      window.clearInterval(pollingRef.current);
+    }
+
+    setStep('verifying');
+    setProcessingMessage('Payment is being verified. Please wait...');
+
+    pollingRef.current = window.setInterval(async () => {
+      try {
+        const statusRes = await getPaymentStatus(orderId);
+        const paymentStatus = statusRes.data?.paymentStatus;
+
+        if (paymentStatus === 'SUCCESS') {
+          if (pollingRef.current) {
+            window.clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          setStep('success');
+          toast.success('Payment captured and booking confirmed!');
+          setTimeout(() => {
+            onBookingComplete();
+            resetAndClose();
+          }, 2000);
+          return;
+        }
+
+        if (paymentStatus === 'FAILED') {
+          if (pollingRef.current) {
+            window.clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          toast.error('Payment failed. Please try booking again.');
+          resetAndClose();
+          return;
+        }
+
+        setProcessingMessage('Payment is being verified. Please wait...');
+      } catch {
+        setProcessingMessage('Still verifying payment. This can take a few moments...');
+      }
+    }, 10000);
   };
 
   const handleLockAndPay = async () => {
@@ -73,7 +147,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
       // Create booking order for ALL selected hours with selected payment type
       const selectedHours = selectedSlots.map(s => s.hour);
-      const orderRes = await createBooking(turfId, date, selectedHours, paymentType, ballType);
+      const orderRes = await createBooking(turfId, date, selectedHours, paymentType, ballType, appliedCoupon?.code);
       
       if (!orderRes.success || !orderRes.data) {
         clearInterval(timer);
@@ -116,20 +190,27 @@ const BookingModal: React.FC<BookingModalProps> = ({
               response.razorpay_signature
             );
 
-            if (verifyRes.success) {
+            const paymentStatus = (verifyRes as any)?.data?.paymentStatus;
+
+            if (verifyRes.success && (paymentStatus === 'SUCCESS' || !paymentStatus)) {
               setStep('success');
               toast.success('🎉 Booking confirmed!');
               setTimeout(() => {
                 onBookingComplete();
                 resetAndClose();
               }, 2000);
+            } else if (verifyRes.success && paymentStatus === 'PROCESSING') {
+              startPaymentStatusPolling(response.razorpay_order_id);
             } else {
-              toast.error('Payment verification failed');
-              resetAndClose();
+              toast.error(verifyRes.message || 'Payment verification failed');
+              if (paymentStatus === 'PROCESSING') {
+                startPaymentStatusPolling(response.razorpay_order_id);
+              } else {
+                resetAndClose();
+              }
             }
           } catch {
-            toast.error('Payment verification error');
-            resetAndClose();
+            startPaymentStatusPolling(response.razorpay_order_id);
           }
         },
         prefill: {
@@ -142,11 +223,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
         modal: {
           ondismiss: () => {
             clearInterval(timer);
-            for (const slot of selectedSlots) {
-               unlockSlot(turfId, date, slot.hour).catch(() => {});
-            }
-            toast.error('Payment cancelled');
-            resetAndClose();
+            toast('Payment window closed. Verifying payment status...', { icon: '⏳' });
+            startPaymentStatusPolling(orderData.orderId);
           },
         },
       };
@@ -205,8 +283,38 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const slotsAmount = selectedSlots.reduce((sum, s) => sum + s.price, 0);
   const ballAmount = BALL_PRICES[ballType];
   const totalAmount = slotsAmount + ballAmount;
-  const advanceAmount = Math.round(totalAmount * 0.3);
-  const payableNow = paymentType === 'advance' ? advanceAmount : totalAmount;
+  const discountAmount = appliedCoupon?.discountAmount ?? 0;
+  const discountedTotal = totalAmount - discountAmount;
+  const advanceAmount = Math.round(discountedTotal * 0.3);
+  const payableNow = paymentType === 'advance' ? advanceAmount : discountedTotal;
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponLoading(true);
+    try {
+      const res = await validateCoupon(code, totalAmount, paymentType);
+      if (res.success && res.data) {
+        setAppliedCoupon({
+          code: res.data.coupon.code,
+          discountAmount: res.data.discountAmount,
+          applicableTo: res.data.coupon.applicableTo,
+        });
+        toast.success(res.message);
+      } else {
+        toast.error(res.message || 'Invalid coupon');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Invalid or expired coupon');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+  };
 
   const formatCountdown = (secs: number) => {
     const min = Math.floor(secs / 60);
@@ -275,6 +383,46 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
             </div>
 
+            {/* Coupon Code Section */}
+            <div className="space-y-2 sm:space-y-3">
+              <p className="text-[9px] sm:text-[10px] text-surface-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                <MdLocalOffer className="text-amber-400" size={12} /> Coupon Code
+              </p>
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <MdLocalOffer className="text-green-400" size={16} />
+                    <span className="text-green-400 font-black text-sm tracking-wider">{appliedCoupon.code}</span>
+                    <span className="text-[10px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full font-bold">-₹{appliedCoupon.discountAmount}</span>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-surface-500 hover:text-red-400 transition-colors"
+                  >
+                    <MdClose size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    placeholder="Enter coupon code"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-surface-600 focus:outline-none focus:border-amber-500/50 uppercase tracking-widest font-bold"
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {couponLoading ? '...' : 'Apply'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Payment Option Selection */}
             <div className="space-y-2 sm:space-y-3">
               <p className="text-[9px] sm:text-[10px] text-surface-400 font-bold uppercase tracking-widest">Payment Option</p>
@@ -288,7 +436,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   }`}
                 >
                   <span className="text-[10px] sm:text-xs font-black text-white uppercase mb-0.5 sm:mb-1">Full Payment</span>
-                  <span className="text-base sm:text-lg font-black text-white">₹{totalAmount}</span>
+                  <span className="text-base sm:text-lg font-black text-white">₹{discountedTotal}</span>
                   <span className="text-[8px] sm:text-[10px] text-surface-400 uppercase tracking-tighter mt-0.5 sm:mt-1 truncate w-full text-center">Pay 100% now</span>
                 </button>
                 <button 
@@ -309,13 +457,24 @@ const BookingModal: React.FC<BookingModalProps> = ({
             <div className="pt-3 sm:pt-4 border-t border-white/10 flex items-end justify-between">
               <div>
                 <p className="text-[9px] sm:text-[10px] text-surface-400 font-bold uppercase tracking-widest mb-0.5 sm:mb-1">Payable Now</p>
-                <p className="text-white font-black text-2xl sm:text-3xl tracking-tight leading-none">
-                   <span className="text-primary-400 mr-0.5">₹</span>{payableNow}
-                </p>
+                {discountAmount > 0 ? (
+                  <div className="flex flex-col">
+                    <p className="text-surface-500 line-through text-sm font-bold">
+                      <span className="mr-0.5">₹</span>{paymentType === 'advance' ? Math.round(totalAmount * 0.3) : totalAmount}
+                    </p>
+                    <p className="text-green-400 font-black text-2xl sm:text-3xl tracking-tight leading-none">
+                      <span className="text-green-500 mr-0.5">₹</span>{payableNow}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-white font-black text-2xl sm:text-3xl tracking-tight leading-none">
+                     <span className="text-primary-400 mr-0.5">₹</span>{payableNow}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col items-end">
                  <span className="text-[8px] sm:text-[10px] text-surface-500 font-bold uppercase mb-1">
-                   {paymentType === 'full' ? 'Payment in Full' : `Balance: ₹${totalAmount - advanceAmount}`}
+                   {paymentType === 'full' ? 'Payment in Full' : `Balance: ₹${discountedTotal - advanceAmount}`}
                  </span>
                  <div className="bg-green-500/20 text-green-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 sm:px-3 sm:py-1 rounded-full border border-green-500/30 uppercase tracking-tighter">
                    Best Price Guarantee
@@ -408,7 +567,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
           </div>
           <h3 className="text-xl font-display font-black text-white mt-8 uppercase tracking-widest">Verifying Payment</h3>
-          <p className="text-surface-500 text-xs mt-2">Checking transaction status with the bank</p>
+          <p className="text-surface-500 text-xs mt-2">{processingMessage}</p>
         </div>
       )}
 

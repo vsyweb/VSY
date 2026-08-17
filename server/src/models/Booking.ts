@@ -46,6 +46,11 @@ const bookingSchema = new Schema<BookingDocument>(
       enum: ['pending', 'confirmed', 'cancelled', 'failed'] as BookingStatus[],
       default: 'pending',
     },
+    paymentStatus: {
+      type: String,
+      enum: ['PROCESSING', 'SUCCESS', 'FAILED'],
+      default: 'PROCESSING',
+    },
     razorpayOrderId: {
       type: String,
       required: true,
@@ -67,6 +72,19 @@ const bookingSchema = new Schema<BookingDocument>(
       type: Number,
       default: 0,
       min: 0,
+    },
+    couponCode: {
+      type: String,
+      default: '',
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Admin',
     },
   },
   {

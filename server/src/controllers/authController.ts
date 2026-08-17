@@ -149,17 +149,18 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const token = generateToken(admin._id.toString(), 'admin');
+    const token = generateToken(admin._id.toString(), admin.role);
 
     res.status(200).json({
       success: true,
-      message: 'Admin login successful',
+      message: admin.role === 'worker' ? 'Worker login successful' : 'Admin login successful',
       data: {
         token,
         admin: {
           id: admin._id,
           email: admin.email,
           name: admin.name,
+          role: admin.role,
         },
       },
     });

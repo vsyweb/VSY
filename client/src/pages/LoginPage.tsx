@@ -202,10 +202,10 @@ const LoginPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               {token && (
                 <Link
-                  to={role === 'admin' ? '/admin' : '/dashboard'}
+                  to={role === 'admin' ? '/admin' : role === 'worker' ? '/worker' : '/dashboard'}
                   className="btn-primary px-8 sm:px-10 py-4 sm:py-5 rounded-2xl flex items-center gap-3 group w-full sm:w-auto justify-center"
                 >
-                  {role === 'admin' ? 'Admin Dashboard' : 'Go to Dashboard'} <MdArrowForward className="group-hover:translate-x-1 transition-transform" size={20} />
+                  {role === 'admin' ? 'Admin Dashboard' : role === 'worker' ? 'Worker Dashboard' : 'Go to Dashboard'} <MdArrowForward className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
               )}
             </div>
@@ -227,10 +227,10 @@ const LoginPage: React.FC = () => {
               {token ? (
                 <div className="space-y-4 relative">
                   <Link
-                    to={role === 'admin' ? '/admin' : '/dashboard'}
+                    to={role === 'admin' ? '/admin' : role === 'worker' ? '/worker' : '/dashboard'}
                     className="w-full btn-primary py-4 sm:py-5 rounded-2xl flex items-center justify-center gap-3 text-base sm:text-lg"
                   >
-                    {role === 'admin' ? 'Open Admin Panel' : 'Continue to Booking'} <MdArrowForward size={22} />
+                    {role === 'admin' ? 'Open Admin Panel' : role === 'worker' ? 'Open Worker Panel' : 'Continue to Booking'} <MdArrowForward size={22} />
                   </Link>
                   <p className="text-center text-xs text-surface-500">
                     Not you? <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-primary-500 font-bold">Switch Account</button>

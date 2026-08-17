@@ -39,6 +39,11 @@ const CricketLoginAnimation: React.FC<Props> = ({
   const particleRef = useRef<number | null>(null);
   const nextId = useRef(0);
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   /* ── phase timer ── */
   useEffect(() => {
     const schedule = [
@@ -52,12 +57,14 @@ const CricketLoginAnimation: React.FC<Props> = ({
     ] as const;
 
     const handles = schedule.map(([p, t]) => setTimeout(() => setPhase(p), t));
-    const done = setTimeout(onComplete, 4800);
+    const done = setTimeout(() => {
+      onCompleteRef.current();
+    }, 4800);
     return () => {
       handles.forEach(clearTimeout);
       clearTimeout(done);
     };
-  }, [onComplete]);
+  }, []);
 
   /* ── particle burst at impact ── */
   useEffect(() => {

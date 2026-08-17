@@ -11,6 +11,9 @@ import type {
   PricingRule,
   BlockedSlotInfo,
   TurfId,
+  Coupon,
+  CouponValidateResponse,
+  PaymentStatusResponse,
 } from '../types';
 
 const api = axios.create({
@@ -91,13 +94,14 @@ export const getPublicPricing = async () => {
 };
 
 // ===== BOOKINGS =====
-export const createBooking = async (turfId: TurfId, date: string, startHours: number[], paymentType: 'full' | 'advance' = 'full', ballType: string = 'light_tennis') => {
+export const createBooking = async (turfId: TurfId, date: string, startHours: number[], paymentType: 'full' | 'advance' = 'full', ballType: string = 'light_tennis', couponCode?: string) => {
   const res = await api.post<ApiResponse<CreateOrderResponse>>('/bookings/create', { 
     turfId, 
     date, 
     startHours,
     paymentType,
-    ballType
+    ballType,
+    couponCode,
   });
   return res.data;
 };
@@ -112,6 +116,11 @@ export const verifyPayment = async (
     razorpayPaymentId,
     razorpaySignature,
   });
+  return res.data;
+};
+
+export const getPaymentStatus = async (razorpayOrderId: string) => {
+  const res = await api.get<ApiResponse<PaymentStatusResponse>>(`/bookings/payment-status/${razorpayOrderId}`);
   return res.data;
 };
 
@@ -138,11 +147,13 @@ export const getAdminBookings = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  createdByMe?: string;
 }) => {
   const res = await api.get<
     ApiResponse<{
       bookings: Booking[];
       pagination: { page: number; limit: number; total: number; pages: number };
+      workerMonthStats?: { count: number; totalAmount: number; totalPaid: number };
     }>
   >('/admin/bookings', { params });
   return res.data;
@@ -165,7 +176,9 @@ export const blockSlotAdmin = async (
   reason?: string,
   phoneNumber?: string,
   customerName?: string,
-  ballType?: string
+  ballType?: string,
+  paymentType?: 'full' | 'advance',
+  customPaidAmount?: number
 ) => {
   const res = await api.post<ApiResponse>('/admin/slots/block', { 
     turfId, 
@@ -174,7 +187,9 @@ export const blockSlotAdmin = async (
     reason,
     phoneNumber,
     customerName,
-    ballType
+    ballType,
+    paymentType,
+    customPaidAmount,
   });
   return res.data;
 };
@@ -203,5 +218,54 @@ export const updatePricingRule = async (ruleId: string, price: number, isActive:
 
 export const migrateWalkIns = async () => {
   const res = await api.post<ApiResponse>('/admin/migrate-walkins');
+  return res.data;
+};
+
+// ===== COUPONS (Admin) =====
+export const getAllCoupons = async () => {
+  const res = await api.get<ApiResponse<Coupon[]>>('/admin/coupons');
+  return res.data;
+};
+
+export const createCoupon = async (data: {
+  code: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  applicableTo: 'full' | 'both';
+  minBookingAmount?: number;
+  maxUses?: number;
+  expiresAt?: string;
+  isActive?: boolean;
+}) => {
+  const res = await api.post<ApiResponse<Coupon>>('/admin/coupons', data);
+  return res.data;
+};
+
+export const updateCoupon = async (id: string, data: Partial<{
+  code: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  applicableTo: 'full' | 'both';
+  minBookingAmount: number;
+  maxUses: number;
+  expiresAt: string;
+  isActive: boolean;
+}>) => {
+  const res = await api.put<ApiResponse<Coupon>>(`/admin/coupons/${id}`, data);
+  return res.data;
+};
+
+export const deleteCoupon = async (id: string) => {
+  const res = await api.delete<ApiResponse>(`/admin/coupons/${id}`);
+  return res.data;
+};
+
+// ===== COUPONS (User) =====
+export const validateCoupon = async (code: string, totalAmount: number, paymentType: 'full' | 'advance') => {
+  const res = await api.post<ApiResponse<CouponValidateResponse>>('/bookings/validate-coupon', {
+    code,
+    totalAmount,
+    paymentType,
+  });
   return res.data;
 };

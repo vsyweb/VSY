@@ -11,6 +11,7 @@ export interface AdminUser {
   id: string;
   email: string;
   name: string;
+  role: 'admin' | 'worker';
 }
 
 export interface SlotInfo {
@@ -21,6 +22,7 @@ export interface SlotInfo {
 }
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed' | 'blocked';
+export type PaymentStatus = 'PROCESSING' | 'SUCCESS' | 'FAILED';
 
 export interface Booking {
   _id: string;
@@ -36,6 +38,7 @@ export interface Booking {
   paidAmountGrouped?: number;  // Added for consolidated bookings
   paymentType: 'full' | 'advance';
   status: BookingStatus;
+  paymentStatus?: PaymentStatus;
   razorpayOrderId: string;
   razorpayPaymentId?: string;
   ballType?: string;
@@ -47,6 +50,7 @@ export interface Booking {
   phoneNumber?: string;
   customerName?: string;
   subBookings?: Booking[];
+  createdBy?: string;
 }
 
 export interface PricingRule {
@@ -95,6 +99,34 @@ export interface ApiResponse<T = unknown> {
   data?: T;
 }
 
+export interface Coupon {
+  _id: string;
+  code: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  applicableTo: 'full' | 'both';
+  minBookingAmount: number;
+  maxUses: number;
+  usedCount: number;
+  isActive: boolean;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CouponValidateResponse {
+  coupon: {
+    _id: string;
+    code: string;
+    discountType: 'percentage' | 'flat';
+    discountValue: number;
+    applicableTo: 'full' | 'both';
+  };
+  discountAmount: number;
+  discountedTotal: number;
+  originalAmount: number;
+}
+
 export interface CreateOrderResponse {
   bookingIds: string[];
   orderId: string;
@@ -106,6 +138,12 @@ export interface CreateOrderResponse {
   startHours: number[];
   paymentType: 'full' | 'advance';
   totalBookingAmount: number;
+}
+
+export interface PaymentStatusResponse {
+  razorpayOrderId: string;
+  paymentStatus: PaymentStatus;
+  bookingStatus: 'pending' | 'confirmed' | 'failed';
 }
 
 export interface LockSlotResponse {

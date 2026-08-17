@@ -14,12 +14,14 @@ export interface IAdmin {
   email: string;
   password: string;
   name: string;
+  role: 'admin' | 'worker';
   createdAt: Date;
 }
 
 export type TurfId = 'A' | 'B';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed';
+export type PaymentStatus = 'PROCESSING' | 'SUCCESS' | 'FAILED';
 export type PaymentType = 'full' | 'advance';
 
 export interface IBooking {
@@ -32,11 +34,15 @@ export interface IBooking {
   paidAmount: number;
   paymentType: PaymentType;
   status: BookingStatus;
+  paymentStatus: PaymentStatus;
   razorpayOrderId: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
   ballType: string;
   ballAmount: number;
+  couponCode?: string;
+  discountAmount?: number;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,7 +91,7 @@ export interface SlotInfo {
 
 export interface JwtPayload {
   id: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'worker';
 }
 
 export interface ApiResponse<T = unknown> {

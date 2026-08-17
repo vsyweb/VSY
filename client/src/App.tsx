@@ -8,6 +8,7 @@ import MyBookingsPage from './pages/MyBookingsPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboard from './pages/AdminDashboard';
+import WorkerDashboard from './pages/WorkerDashboard';
 import LoadingSpinner from './components/LoadingSpinner';
 
 // Protected route for users
@@ -48,6 +49,25 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Protected route for workers
+const WorkerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { token, role, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface-950 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading..." />
+      </div>
+    );
+  }
+
+  if (!token || role !== 'worker') {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Redirect if already logged in
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, role, isLoading } = useAuth();
@@ -62,6 +82,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (token) {
     if (role === 'admin') return <Navigate to="/admin" replace />;
+    if (role === 'worker') return <Navigate to="/worker" replace />;
     if (role === 'user') return <Navigate to="/dashboard" replace />;
   }
 
@@ -143,6 +164,16 @@ const App: React.FC = () => {
               <AdminRoute>
                 <AdminDashboard />
               </AdminRoute>
+            }
+          />
+
+          {/* Worker routes */}
+          <Route
+            path="/worker"
+            element={
+              <WorkerRoute>
+                <WorkerDashboard />
+              </WorkerRoute>
             }
           />
 

@@ -42,7 +42,7 @@ const calculatePrice = (slot: { turfId: string; date: string; startHour: number 
  */
 export const getAllBookings = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { date, turfId, status, search, page = '1', limit = '8' } = req.query;
+    const { date, turfId, status, search, page = '1', limit = '8', createdByMe } = req.query;
 
     // Cleanup expired pending bookings globally
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -55,6 +55,9 @@ export const getAllBookings = async (req: Request, res: Response): Promise<void>
     if (date && typeof date === 'string') filter.date = date;
     if (turfId && typeof turfId === 'string') filter.turfId = turfId;
     if (status && typeof status === 'string') filter.status = status;
+    if (createdByMe === 'true' && req.userId) {
+      filter.createdBy = new mongoose.Types.ObjectId(req.userId);
+    }
 
     // Add search mapping for User references
     if (search && typeof search === 'string' && search.trim() !== '') {
@@ -93,6 +96,9 @@ export const getAllBookings = async (req: Request, res: Response): Promise<void>
       const blockedFilter: any = {};
       if (date && typeof date === 'string') blockedFilter.date = date;
       if (turfId && typeof turfId === 'string') blockedFilter.turfId = turfId;
+      if (createdByMe === 'true' && req.userId) {
+        blockedFilter.blockedBy = new mongoose.Types.ObjectId(req.userId);
+      }
 
       if (search && typeof search === 'string' && search.trim() !== '') {
         blockedFilter.$or = [
@@ -148,6 +154,31 @@ export const getAllBookings = async (req: Request, res: Response): Promise<void>
       return dateA.localeCompare(dateB);
     });
 
+    let workerMonthTotalAmount = 0;
+    let workerMonthPaidAmount = 0;
+    let workerMonthCount = 0;
+
+    if (req.userId) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const startOfMonthStr = `${year}-${month}-01`;
+      const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+      const endOfMonthStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+      const monthBookings = await Booking.find({
+        createdBy: new mongoose.Types.ObjectId(req.userId),
+        date: { $gte: startOfMonthStr, $lte: endOfMonthStr },
+        status: { $ne: 'cancelled' }
+      }).lean();
+
+      workerMonthCount = monthBookings.length;
+      for (const mb of monthBookings) {
+        workerMonthTotalAmount += (mb.totalAmount || 0);
+        workerMonthPaidAmount += (mb.paidAmount || 0);
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Bookings retrieved',
@@ -159,6 +190,11 @@ export const getAllBookings = async (req: Request, res: Response): Promise<void>
           total: totalBookings + extraRecords.length,
           pages: Math.ceil((totalBookings + extraRecords.length) / limitNum),
         },
+        workerMonthStats: {
+          count: workerMonthCount,
+          totalAmount: workerMonthTotalAmount,
+          totalPaid: workerMonthPaidAmount
+        }
       },
     });
   } catch (error) {
@@ -215,7 +251,7 @@ export const adminCollectPayment = async (req: Request, res: Response): Promise<
  */
 export const blockSlot = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { turfId, date, reason, phoneNumber, customerName, ballType = 'none' } = req.body;
+    const { turfId, date, reason, phoneNumber, customerName, ballType = 'none', customPaidAmount } = req.body;
     let { startHour, startHours } = req.body;
     const adminId = req.userId;
 
@@ -261,19 +297,62 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
       const pricingRules = await PricingRule.find({ isActive: true }).lean();
       const BALL_PRICES: Record<string, number> = { light_tennis: 80, hard_tennis: 100, none: 0 };
       
+      let totalBookingAmount = BALL_PRICES[ballType] || 0;
+      for (const hour of numericStartHours) {
+        totalBookingAmount += calculatePrice({ turfId, date, startHour: hour }, pricingRules);
+      }
+
+      let bookingPaymentType: 'full' | 'advance' = 'full';
+      let customPaid: number | undefined = undefined;
+
+      if (customPaidAmount !== undefined && customPaidAmount !== null && customPaidAmount !== '') {
+        const val = Number(customPaidAmount);
+        if (isNaN(val) || val < 0) {
+          res.status(400).json({ success: false, message: 'Invalid custom paid amount' });
+          return;
+        }
+        if (val > totalBookingAmount) {
+          res.status(400).json({ success: false, message: `Custom paid amount cannot exceed total amount of ₹${totalBookingAmount}` });
+          return;
+        }
+        customPaid = val;
+        bookingPaymentType = customPaid >= totalBookingAmount ? 'full' : 'advance';
+      } else {
+        bookingPaymentType = req.body.paymentType === 'advance' ? 'advance' : 'full';
+      }
+
+      let remainingPaidAmt = customPaid !== undefined ? customPaid : 0;
+      const totalSlotsCount = numericStartHours.length;
+      let totalProcessedSlots = 0;
       const allBookings = [];
+
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         const razorpayOrderId = `WALKIN-${Date.now()}-C${i}`;
         
         for (let j = 0; j < chunk.length; j++) {
           const hour = chunk[j];
-          const isFirstBooking = j === 0;
+          totalProcessedSlots++;
+          const isFirstBooking = totalProcessedSlots === 1;
+          const isLastBooking = totalProcessedSlots === totalSlotsCount;
           const currentBallType = isFirstBooking ? ballType : 'none';
-          const ballAmount = isFirstBooking ? (BALL_PRICES[ballType] || 0) : 0;
+          const ballAmt = isFirstBooking ? (BALL_PRICES[ballType] || 0) : 0;
           
           let price = calculatePrice({ turfId, date, startHour: hour }, pricingRules);
-          price += ballAmount;
+          price += ballAmt;
+
+          let paidAmt = 0;
+          if (customPaid !== undefined) {
+            if (isLastBooking) {
+              paidAmt = remainingPaidAmt;
+            } else {
+              paidAmt = Math.round((price / totalBookingAmount) * customPaid);
+              paidAmt = Math.min(paidAmt, remainingPaidAmt);
+            }
+            remainingPaidAmt -= paidAmt;
+          } else {
+            paidAmt = bookingPaymentType === 'advance' ? Math.round(price * 0.3) : price;
+          }
 
           const booking = await Booking.create({
             userId: user._id,
@@ -281,14 +360,16 @@ export const blockSlot = async (req: Request, res: Response): Promise<void> => {
             date,
             startHour: hour,
             totalAmount: price,
-            paidAmount: price,
-            paymentType: 'full',
+            paidAmount: paidAmt,
+            paymentType: bookingPaymentType,
             status: 'confirmed',
+            paymentStatus: 'SUCCESS',
             razorpayOrderId,
-            razorpayPaymentId: 'CASH_PAYMENT',
-            razorpaySignature: 'ADMIN_COLLECTED',
+            razorpayPaymentId: bookingPaymentType === 'advance' ? 'ADVANCE_CASH' : 'CASH_PAYMENT',
+            razorpaySignature: bookingPaymentType === 'advance' ? 'ADVANCE_COLLECTED' : 'ADMIN_COLLECTED',
             ballType: currentBallType,
-            ballAmount: isFirstBooking ? ballAmount : 0
+            ballAmount: isFirstBooking ? ballAmt : 0,
+            createdBy: new mongoose.Types.ObjectId(adminId),
           });
           allBookings.push(booking);
         }
@@ -562,6 +643,7 @@ export const migrateWalkIns = async (_req: Request, res: Response): Promise<void
           paidAmount: price,
           paymentType: 'full',
           status: 'confirmed',
+          paymentStatus: 'SUCCESS',
           razorpayOrderId: `WALKIN-MIGRATED-${bs._id}`,
           razorpayPaymentId: 'CASH_PAYMENT',
           razorpaySignature: 'ADMIN_COLLECTED'

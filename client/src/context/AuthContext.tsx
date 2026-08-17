@@ -6,7 +6,7 @@ interface AuthState {
   user: User | null;
   admin: AdminUser | null;
   token: string | null;
-  role: 'user' | 'admin' | null;
+  role: 'user' | 'admin' | 'worker' | null;
   isLoading: boolean;
 }
 
@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize from localStorage
   useEffect(() => {
     const token = localStorage.getItem('vsy_token');
-    const role = localStorage.getItem('vsy_role') as 'user' | 'admin' | null;
+    const role = localStorage.getItem('vsy_role') as 'user' | 'admin' | 'worker' | null;
     const userStr = localStorage.getItem('vsy_user');
     const adminStr = localStorage.getItem('vsy_admin');
 
@@ -77,8 +77,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginAdmin = (token: string, admin: AdminUser) => {
     localStorage.setItem('vsy_token', token);
     localStorage.setItem('vsy_admin', JSON.stringify(admin));
-    localStorage.setItem('vsy_role', 'admin');
-    setState({ token, admin, user: null, role: 'admin', isLoading: false });
+    localStorage.setItem('vsy_role', admin.role);
+    setState({ token, admin, user: null, role: admin.role, isLoading: false });
   };
 
   return (

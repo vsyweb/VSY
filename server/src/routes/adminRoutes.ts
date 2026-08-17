@@ -11,31 +11,35 @@ import {
   getBlockedSlots,
   migrateWalkIns,
 } from '../controllers/adminController';
-import { authMiddleware, adminMiddleware } from '../middleware/auth';
+import {
+  createCoupon,
+  getAllCoupons,
+  updateCoupon,
+  deleteCoupon,
+} from '../controllers/couponController';
+import { authMiddleware, adminMiddleware, adminOrWorkerMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// All admin routes require auth + admin role
-router.use(authMiddleware, adminMiddleware);
+// Require auth header for all endpoints in this router
+router.use(authMiddleware);
 
-// Dashboard
-router.get('/stats', getDashboardStats);
+// --- Admin Only Routes ---
+router.get('/stats', adminMiddleware, getDashboardStats);
+router.get('/pricing', adminMiddleware, getPricingRules);
+router.put('/pricing/:ruleId', adminMiddleware, updatePricingRule);
+router.get('/coupons', adminMiddleware, getAllCoupons);
+router.post('/coupons', adminMiddleware, createCoupon);
+router.put('/coupons/:id', adminMiddleware, updateCoupon);
+router.delete('/coupons/:id', adminMiddleware, deleteCoupon);
+router.post('/migrate-walkins', adminMiddleware, migrateWalkIns);
 
-// Bookings management
-router.get('/bookings', getAllBookings);
-router.put('/bookings/cancel/:bookingId', adminCancelBooking);
-router.put('/bookings/collect-payment/:bookingId', adminCollectPayment);
-
-// Slot blocking
-router.post('/slots/block', blockSlot);
-router.post('/slots/unblock', unblockSlot);
-router.get('/slots/blocked', getBlockedSlots);
-
-// Pricing
-router.get('/pricing', getPricingRules);
-router.put('/pricing/:ruleId', updatePricingRule);
-
-// One-time migration utility
-router.post('/migrate-walkins', migrateWalkIns);
+// --- Admin and Worker Shared Routes ---
+router.get('/bookings', adminOrWorkerMiddleware, getAllBookings);
+router.put('/bookings/cancel/:bookingId', adminOrWorkerMiddleware, adminCancelBooking);
+router.put('/bookings/collect-payment/:bookingId', adminOrWorkerMiddleware, adminCollectPayment);
+router.post('/slots/block', adminOrWorkerMiddleware, blockSlot);
+router.post('/slots/unblock', adminOrWorkerMiddleware, unblockSlot);
+router.get('/slots/blocked', adminOrWorkerMiddleware, getBlockedSlots);
 
 export default router;
